@@ -48,3 +48,7 @@ def main():
         data_pairs.to_csv(args.download_csv, index=False)
 
     os.chdir(cwd)
+
+
+if __name__=="__main__":
+    main()
