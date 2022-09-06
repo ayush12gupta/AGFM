@@ -36,6 +36,7 @@ def main():
         execute('time topsApp.py topsApp.xml --start=startup --end=mergebursts')
 
     if os.path.exists('merged/secondary.slc.full'):
+        execute(f'python {cwd}/geogrid_autorift/topsinsar_filename.py')
         offset_tracking(config, cwd, args.netCDF_out)
         os.chdir(cwd)
     else:

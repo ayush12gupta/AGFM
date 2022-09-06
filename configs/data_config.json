@@ -1,13 +1,15 @@
 {
     "num_threads": 32,
     "SAR_dir": "./data/",
-    "Orbit_dir": "./data/orbit",
+    "Orbit_dir": "./data/orbit/",
+    "shapefile_dir": "./data/shapefiles/",
     "isce_config": "config/isce_config.json",
     "fails": "fails.txt",
     "reference_vel": "./ref_vel.tif",
-    "dem": {"DEM": "./dem_roi.tif",
-            "X": "./dem_roi_X.tif",
-            "Y": "./dem_roi_Y.tif"
+    "dem": {"DEM": "./data/dem_roi.tif",
+            "Slope": "./data/demroi_2.tif",
+            "X": "./data/dem_roi_X.tif",
+            "Y": "./data/dem_roi_Y.tif"
         },
     "ssm": "ssm.tif"
 }

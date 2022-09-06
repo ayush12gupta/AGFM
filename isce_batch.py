@@ -39,6 +39,7 @@ def main():
         
         if os.path.exists('merged/secondary.slc.full'):
             print(os.getcwd(), "Coregisteration complete")
+            execute(f'python {cwd}/geogrid_autorift/topsinsar_filename.py')
             data_pairs.at[i,'Status'] = 1
             data_pairs.to_csv(args.download_csv, index=False)
         else:

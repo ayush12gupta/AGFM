@@ -31,6 +31,7 @@
 
 
 import pdb
+import json
 from osgeo import gdal, osr
 
 
@@ -63,6 +64,8 @@ def cmdLineParse():
             help='Input chip size min file name')
     parser.add_argument('-csmax', '--input_csmax', dest='chip_size_max', type=str, required=False,
             help='Input chip size max file name')
+    parser.add_argument('-config', '--post_config', dest='post_config', type=str, required=False, default='../config/data_config.json',
+            help='Velocity Post Processing configs these would be passed to utils postprocessing function')
     parser.add_argument('-vx', '--input_vx', dest='offset2vx', type=str, required=False,
             help='Input pixel offsets to vx conversion coefficients file name')
     parser.add_argument('-vy', '--input_vy', dest='offset2vy', type=str, required=False,
@@ -394,11 +397,11 @@ def main():
                             chip_size_min=inps.chip_size_min,chip_size_max=inps.chip_size_max,
                             offset2vx=inps.offset2vx, offset2vy=inps.offset2vy,
                             stable_surface_mask=inps.stable_surface_mask, optical_flag=inps.optical_flag,
-                            nc_sensor=inps.nc_sensor, mpflag=inps.mpflag, ncname=inps.ncname)
+                            nc_sensor=inps.nc_sensor, mpflag=inps.mpflag, ncname=inps.ncname, post_config=inps.post_config)
 
 
 def generateAutoriftProduct(indir_m, indir_s, grid_location, init_offset, search_range, chip_size_min, chip_size_max,
-                            offset2vx, offset2vy, stable_surface_mask, optical_flag, nc_sensor, mpflag, ncname,
+                            offset2vx, offset2vy, stable_surface_mask, optical_flag, nc_sensor, mpflag, ncname, post_config,
                             geogrid_run_info=None):
 
     import numpy as np
@@ -650,6 +653,26 @@ def generateAutoriftProduct(indir_m, indir_s, grid_location, init_offset, search
             outband.FlushCache()
             del outRaster
 
+            if geogrid_run_info is None:
+                chipsizex0 = float(str.split(runCmd('fgrep "Smallest Allowable Chip Size in m:" testGeogrid.txt'))[-1])
+                gridspacingx = float(str.split(runCmd('fgrep "Grid spacing in m:" testGeogrid.txt'))[-1])
+                incidenceAngle = float(str.split(runCmd('fgrep "Incidence Angle:" testGeogrid.txt'))[-1])
+                azimuthAngle = float(str.split(runCmd('fgrep "Azimuth angle:" testGeogrid.txt'))[-1])
+                rangePixelSize = float(str.split(runCmd('fgrep "Ground range pixel size:" testGeogrid.txt'))[4])
+                azimuthPixelSize = float(str.split(runCmd('fgrep "Azimuth pixel size:" testGeogrid.txt'))[3])
+                dt = float(str.split(runCmd('fgrep "Repeat Time:" testGeogrid.txt'))[2])
+                epsg = float(str.split(runCmd('fgrep "EPSG:" testGeogrid.txt'))[1])
+                kwargs = {'incidence_angle': incidenceAngle, 'azimuth_angle': azimuthAngle, 'rangePixelSize': rangePixelSize, 'azimuthPixelSize': azimuthPixelSize, 'repeat_time': dt}
+                #  print (str(rangePixelSize)+"      "+str(azimuthPixelSize))
+            else:
+                chipsizex0 = geogrid_run_info['chipsizex0']
+                gridspacingx = geogrid_run_info['gridspacingx']
+                rangePixelSize = geogrid_run_info['XPixelSize']
+                azimuthPixelSize = geogrid_run_info['YPixelSize']
+                dt = geogrid_run_info['dt']
+                epsg = geogrid_run_info['epsg']
+                kwargs = {'rangePixelSize': rangePixelSize, 'azimuthPixelSize': azimuthPixelSize, 'repeat_time': dt}
+
             ############ prepare for netCDF packaging
 
             if nc_sensor is not None:
@@ -780,29 +803,14 @@ def generateAutoriftProduct(indir_m, indir_s, grid_location, init_offset, search
                 VY = VY.astype(np.float32)
 
             ########################################################################################
-                ############   netCDF packaging for Sentinel and Landsat dataset; can add other sensor format as well
+                ############   netCDF packaging for Sentinel and Landsat dataset; can add other sensor format as well                    
                 if nc_sensor == "S":
-                    if geogrid_run_info is None:
-                        chipsizex0 = float(str.split(runCmd('fgrep "Smallest Allowable Chip Size in m:" testGeogrid.txt'))[-1])
-                        gridspacingx = float(str.split(runCmd('fgrep "Grid spacing in m:" testGeogrid.txt'))[-1])
-                        incidenceAngle = float(str.split(runCmd('fgrep "Incidence Angle:" testGeogrid.txt'))[-1])
-                        rangePixelSize = float(str.split(runCmd('fgrep "Ground range pixel size:" testGeogrid.txt'))[4])
-                        azimuthPixelSize = float(str.split(runCmd('fgrep "Azimuth pixel size:" testGeogrid.txt'))[3])
-                        dt = float(str.split(runCmd('fgrep "Repeat Time:" testGeogrid.txt'))[2])
-                        epsg = float(str.split(runCmd('fgrep "EPSG:" testGeogrid.txt'))[1])
-                        #  print (str(rangePixelSize)+"      "+str(azimuthPixelSize))
-                    else:
-                        chipsizex0 = geogrid_run_info['chipsizex0']
-                        gridspacingx = geogrid_run_info['gridspacingx']
-                        rangePixelSize = geogrid_run_info['XPixelSize']
-                        azimuthPixelSize = geogrid_run_info['YPixelSize']
-                        dt = geogrid_run_info['dt']
-                        epsg = geogrid_run_info['epsg']
+                    
                     # print("####", os.path.dirname(os.path.dirname(indir_m)), )
                     current_dir = os.getcwd()
                     parent_dir = os.path.dirname(os.path.dirname(indir_m))
                     os.chdir(parent_dir)
-                    runCmd('python /DATA/glacier-vel/geogrid_autorift/topsinsar_filename.py')
+                    # runCmd('python /DATA/glacier-vel/geogrid_autorift/topsinsar_filename.py')
                     if not os.path.exists(os.path.join(current_dir, 'topsinsar_filename.mat')):
                         shutil.move('topsinsar_filename.mat', current_dir)
                     os.chdir(current_dir)
@@ -859,8 +867,6 @@ def generateAutoriftProduct(indir_m, indir_s, grid_location, init_offset, search
                         dx_mean_shift, dy_mean_shift, dx_mean_shift1, dy_mean_shift1, error_vector
                     )
 
-                    from util import postprocess
-                    postprocess(out_nc_filename)
 
                 elif nc_sensor == "L":
                     if geogrid_run_info is None:
@@ -1092,6 +1098,13 @@ def generateAutoriftProduct(indir_m, indir_s, grid_location, init_offset, search
                 else:
                     raise Exception('netCDF packaging not supported for the type "{0}"'.format(nc_sensor))
 
+            from util import postprocess
+            # Reading config file
+            with open(post_config, 'r') as f:
+                config = json.load(f)
+
+            postprocess(ncname, kwargs, config)
+        
         print("Write Outputs Done!!!")
         print(time.time()-t1)
 

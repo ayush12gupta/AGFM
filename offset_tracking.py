@@ -13,7 +13,8 @@ def offset_tracking(config, cwd, netCDF_out):
         print("./window_location.tif  ---> Already exists")
     
     if os.path.exists('../merged/reference.slc.full')&os.path.exists('../merged/secondary.slc.full'):
-        cwd = f'time python {cwd}/geogrid_autorift/testautoRIFT_ISCE.py -m ../merged/reference.slc.full -s ../merged/secondary.slc.full -g window_location.tif -vx window_rdr_off2vel_x_vec.tif -vy window_rdr_off2vel_y_vec.tif -ssm window_stable_surface_mask.tif -mpflag {str(config["num_threads"])} -nc S -ncname {netCDF_out}'
+        cmd = f'time python {cwd}/geogrid_autorift/testautoRIFT_ISCE.py -m ../merged/reference.slc.full -s ../merged/secondary.slc.full -g window_location.tif -vx window_rdr_off2vel_x_vec.tif -vy window_rdr_off2vel_y_vec.tif -ssm window_stable_surface_mask.tif -mpflag {str(config["num_threads"])} -config {cwd}/configs/velocity_config.json -ncname {netCDF_out}'   # -nc S'
+        execute(cmd)
     else:
         print("Coregistered images not available check isce.log for issues with ISCE coregisteration")
     

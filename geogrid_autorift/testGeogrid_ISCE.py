@@ -315,6 +315,7 @@ def determineBbox(self, zrange=[-200,4000]):
     ylim = [np.min(xyzs[:,1]), np.max(xyzs[:,1])]
     return xlim, ylim
 
+
 def getazimuthAngle(filename):
     from zipfile import ZipFile
     
@@ -347,7 +348,7 @@ def generateFile(obj, xlim, ylim):
     lines.append("Azimuth: " + "{:.3f}".format(sensingStart) + " {:.3f}".format(obj.prf))
     lines.append("Dimensions: " + str(obj.numberOfSamples) + " " + str(obj.numberOfLines))
     lines.append("Incidence Angle: " + "{:.4f}".format(obj.incidenceAngle*180/np.pi))
-    lines.append("Azimuth angle: " + "{:.4f}".format(360-azimuth_angle))
+    lines.append("Azimuth angle: " + "{:.4f}".format(360+azimuth_angle))
 
     lines.append("\nMap inputs: ")
     lines.append("EPSG: " + str(getProjectionSystem(obj.demname)))
