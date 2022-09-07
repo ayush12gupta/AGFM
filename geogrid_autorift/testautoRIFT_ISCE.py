@@ -64,6 +64,10 @@ def cmdLineParse():
             help='Input chip size min file name')
     parser.add_argument('-csmax', '--input_csmax', dest='chip_size_max', type=str, required=False,
             help='Input chip size max file name')
+    parser.add_argument('-chipmin', '--min_chip', dest='chip_min', type=int, required=False, default=256,
+            help='Input chip size min integer')
+    parser.add_argument('-chipmax', '--max_chip', dest='chip_max', type=int, required=False, default=512,
+            help='Input chip size max integer')
     parser.add_argument('-config', '--post_config', dest='post_config', type=str, required=False, default='../config/data_config.json',
             help='Velocity Post Processing configs these would be passed to utils postprocessing function')
     parser.add_argument('-vx', '--input_vx', dest='offset2vx', type=str, required=False,
@@ -131,7 +135,7 @@ def loadProductOptical(file_m, file_s):
 
 
 def runAutorift(I1, I2, xGrid, yGrid, Dx0, Dy0, SRx0, SRy0, CSMINx0, CSMINy0, CSMAXx0, CSMAXy0, noDataMask, optflag,
-                nodata, mpflag, geogrid_run_info=None):
+                nodata, mpflag, chip_max, chip_min, geogrid_run_info=None):
     '''
     Wire and run geogrid.
     '''
@@ -255,9 +259,9 @@ def runAutorift(I1, I2, xGrid, yGrid, Dx0, Dy0, SRx0, SRy0, CSMINx0, CSMINy0, CS
             obj.ChipSize0X = 8
     
     ## CHIP SIZE HARD CODED ##
-    obj.ChipSizeMaxX = 512
-    obj.ChipSizeMinX = 256
-    obj.ChipSize0X = 128
+    obj.ChipSizeMaxX = chip_max
+    obj.ChipSizeMinX = chip_min
+    obj.ChipSize0X = chip_min//2
     print('!!! test', obj.ChipSizeMinX, obj.ChipSizeMaxX)
     # create the downstream search offset if not provided as input
     if Dx0 is not None:
@@ -397,11 +401,11 @@ def main():
                             chip_size_min=inps.chip_size_min,chip_size_max=inps.chip_size_max,
                             offset2vx=inps.offset2vx, offset2vy=inps.offset2vy,
                             stable_surface_mask=inps.stable_surface_mask, optical_flag=inps.optical_flag,
-                            nc_sensor=inps.nc_sensor, mpflag=inps.mpflag, ncname=inps.ncname, post_config=inps.post_config)
+                            nc_sensor=inps.nc_sensor, mpflag=inps.mpflag, ncname=inps.ncname, post_config=inps.post_config, chip_min=inps.chip_min, chip_max=inps.chip_min)
 
 
 def generateAutoriftProduct(indir_m, indir_s, grid_location, init_offset, search_range, chip_size_min, chip_size_max,
-                            offset2vx, offset2vy, stable_surface_mask, optical_flag, nc_sensor, mpflag, ncname, post_config,
+                            offset2vx, offset2vy, stable_surface_mask, optical_flag, nc_sensor, mpflag, ncname, post_config,chip_min,chip_max,
                             geogrid_run_info=None):
 
     import numpy as np
@@ -511,7 +515,7 @@ def generateAutoriftProduct(indir_m, indir_s, grid_location, init_offset, search
     else:
         Dx, Dy, InterpMask, ChipSizeX, GridSpacingX, ScaleChipSizeY, SearchLimitX, SearchLimitY, origSize, noDataMask = runAutorift(
             data_m, data_s, xGrid, yGrid, Dx0, Dy0, SRx0, SRy0, CSMINx0, CSMINy0, CSMAXx0, CSMAXy0,
-            noDataMask, optical_flag, nodata, mpflag, geogrid_run_info=geogrid_run_info,
+            noDataMask, optical_flag, nodata, mpflag, chip_max, chip_min, geogrid_run_info=geogrid_run_info,
         )
         if nc_sensor is not None:
             import netcdf_output as no

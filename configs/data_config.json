@@ -1,5 +1,7 @@
 {
     "num_threads": 32,
+    "chip_min": 256,
+    "chip_max": 512,
     "SAR_dir": "./data/",
     "Orbit_dir": "./data/orbit/",
     "shapefile_dir": "./data/shapefiles/",

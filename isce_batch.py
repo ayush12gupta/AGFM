@@ -3,7 +3,7 @@ import json
 import argparse
 import pandas as pd
 
-from utils import execute
+from utils import execute, generate_dem_products
 from offset_tracking import offset_tracking
 
 
@@ -32,10 +32,12 @@ def main():
         os.chdir(year)
         os.makedirs(str(row['Start Date']), exist_ok=True)
         os.chdir(str(row['Start Date']))
-        execute(f'python3 {cwd}/preprocessing/setup_env.py --reference {config["SAR_dir"]}/{year} --secondary {config["SAR_dir"]}/{year} --orbit_path {config["Orbit_data"]} --data_pathR {config["SAR_dir"]}/{year} --data_pathS {config["SAR_dir"]}/{year}')
+        execute(f'python3 {cwd}/preprocessing/setup_env.py --roi {row["ROI"]} --reference {config["SAR_dir"]}/{year} --secondary {config["SAR_dir"]}/{year} --orbit_path {config["Orbit_data"]} --data_pathR {config["SAR_dir"]}/{year} --data_pathS {config["SAR_dir"]}/{year}')
         
         if not os.path.exists('merged/secondary.slc.full'):
             execute('time topsApp.py topsApp.xml --start=startup --end=mergebursts')
+            dem_dirs = [d for d in os.listdir('./') if (d[-5:]=='wgs84')&(d[:6]=='demLat')]
+            generate_dem_products(dem_dirs[0], row['ROI'])
         
         if os.path.exists('merged/secondary.slc.full'):
             print(os.getcwd(), "Coregisteration complete")

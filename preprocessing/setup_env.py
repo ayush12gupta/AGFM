@@ -12,7 +12,8 @@ parser.add_argument('--secondary', type=str, required=True, help="URL of seconda
 parser.add_argument('--orbit_path', type=str, default="./orbits/", help="directory in which orbit file needs to be saved")
 parser.add_argument('--data_pathR', type=str, default="./data/", help="directory in which reference data files needs to be saved")
 parser.add_argument('--data_pathS', type=str, default="./data/", help="directory in which secondary data files needs to be saved")
-parser.add_argument('--config', type=str, default="./config/isce_config.json", help="ISCE config file")
+parser.add_argument('--config', type=str, default="./configs/isce_config.json", help="ISCE config file")
+parser.add_argument('--roi', type=str, default=None, help="Region of interest")
 
 args = parser.parse_args()
 
@@ -37,6 +38,12 @@ def setup(args):
     # Reading config file
     with open("isce_config.json", 'r') as f:
         config = json.load(f)
+
+    # Setting region of interest
+    if args.roi==None:
+        roi = config['ROI']
+    else:
+        roi = args.roi
 
     if not os.path.exists(args.data_pathR):
         os.mkdir(args.data_pathR)
@@ -104,7 +111,7 @@ def setup(args):
         <!--<property name="geocode demfilename">path_to_your_dem</property>-->
         <!--property name="geocode list">['merged/phsig.cor', 'merged/filt_topophase.unw', 'merged/los.rdr', 'merged/topophase.flat', 'merged/filt_topophase.flat','merged/topophase.cor','merged/filt_topophase.unw.conncomp']</property>-->
     </component>
-    </topsApp>'''.format(config['swath'],config['ROI'],config['do_ESD'],config['do_interferogram'],config['ampcor_skip'],config['ampcor_search'],config['ampcor_window'],
+    </topsApp>'''.format(config['swath'], roi, config['do_ESD'],config['do_interferogram'],config['ampcor_skip'],config['ampcor_search'],config['ampcor_window'],
                         config['do_ionosphere_correct'],config['ionosphere']['consider_burst'],config['ionosphere']['start'],config['ionosphere']['end'],config['ionosphere']['height'],
                         config['ionosphere']['apply_polyn_fit'],config['ionosphere']['max_window_phase'],config['ionosphere']['min_window_phase'],config['ionosphere']['max_window_azi'],config['ionosphere']['min_window_azi'])
     with open("topsApp.xml", "w") as fid:
