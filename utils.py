@@ -2,6 +2,7 @@ import subprocess, sys
 from pyproj import Transformer
 from osgeo import gdal, osr
 import numpy as np
+import xml.etree.ElementTree as ET
 
 from geogrid_autorift.util import numpy_array_to_raster
 
@@ -10,7 +11,21 @@ def execute(cmd):
     subprocess.check_call(cmd, shell=True, stdout=sys.stdout, stderr=subprocess.STDOUT)
 
 
-def horn_gradient(z, geo):
+def getazimuthAngle(filename):
+    from zipfile import ZipFile
+    
+    with ZipFile(filename, 'r') as zipObj:
+        listOfiles = zipObj.namelist()
+        for l in listOfiles:
+            if l.endswith('xml') and l.split('/')[-2]=='annotation':
+                f = zipObj.open(l)
+                fl = str(f.read())
+                azimuth_angle = float(fl.split('platformHeading>')[1][:-2])
+                break
+    return azimuth_angle
+
+
+def horn_gradient(z):
     """calculate x and y gradients according to Horn (1981) method"""
 
     nrows, ncols = z.shape
@@ -23,7 +38,9 @@ def horn_gradient(z, geo):
     z_12 = z[1:nrows-1, 2:ncols]
     z_22 = z[2:nrows, 2:ncols]
     
-    dz_dx = (z_02+2.0*z_12+z_22-z_00-2.0*z_10-z_20)/8.0
+    dz_dx_tmp = (z_02+2.0*z_12+z_22-z_00-2.0*z_10-z_20)/8.0
+    dz_dx = np.zeros((nrows, ncols))
+    dz_dx[1:-1,1:-1] = dz_dx_tmp
     
     z_00 = z[0:nrows-2, 0:ncols-2]
     z_01 = z[0:nrows-2, 1:ncols-1]
@@ -33,12 +50,17 @@ def horn_gradient(z, geo):
     z_21 = z[2:nrows, 1:ncols-1]
     z_22 = z[2:nrows, 2:ncols]
     
-    dz_dy = (z_20+2.0*z_21+z_22-z_00-2.0*z_01-z_02)/8.0	
-
-    dz_dy = dz_dy/geo[1]
-    dz_dx = dz_dx/geo[5]
+    dz_dy_tmp = (z_20+2.0*z_21+z_22-z_00-2.0*z_01-z_02)/8.0	
+    dz_dy = np.zeros((nrows, ncols))
+    dz_dy[1:-1,1:-1] = dz_dy_tmp
     
     return (dz_dy, dz_dx)
+
+
+def directional_slope(slopex, slopey, angle):
+    rad = (angle*np.pi)/180
+    dslope = (slopex*np.sin(rad)) + (slopey*np.cos(rad))
+    return dslope
 
 
 def generate_dem_products(dem_dir, bbox):
@@ -62,12 +84,23 @@ def generate_dem_products(dem_dir, bbox):
     geo = demvel.GetGeoTransform()
     demvel = None
 
+    # Get azimuth angle 
+    tree = ET.parse('reference.xml')
+    ref_dir = str(tree.getroot().findall(".//*[@name='safe']")[0].text[1:-1])
+    azimuth_angle = getazimuthAngle(ref_dir)
     dz_dy, dz_dx = horn_gradient(dem, geo)
+    slopey = directional_slope(dz_dx, dz_dy, float(azimuth_angle))
+    slopex = directional_slope(dz_dx, dz_dy, (float(azimuth_angle)+90))
+    slope = np.sqrt(slopey**2 + slopex**2)
+    D = np.arctan(slope)*(180.0)/np.pi
 
     # Saving slope along X and Y directions
-    ds = numpy_array_to_raster('dem_x.tif', np.expand_dims(dz_dx, 0), projs, geo, nband=1)
+    ds = numpy_array_to_raster('dem_x.tif', np.expand_dims(slopex, 0), projs, geo, nband=1)
     ds.FlushCache()
     ds = None 
-    ds = numpy_array_to_raster('dem_y.tif', np.expand_dims(dz_dy, 0), projs, geo, nband=1)
+    ds = numpy_array_to_raster('dem_y.tif', np.expand_dims(slopey, 0), projs, geo, nband=1)
     ds.FlushCache()
     ds = None 
+    ds = numpy_array_to_raster('dem_slope.tif', np.expand_dims(D, 0), projs, geo, nband=1)
+    ds.FlushCache()
+    ds = None

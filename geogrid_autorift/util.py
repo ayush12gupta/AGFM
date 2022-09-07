@@ -134,7 +134,6 @@ def generateCrops_NC(fn):
 
 def generateCrops(fn, incidenceAngle, azimuthAngle, config):
 
-    file2read = netCDF4.Dataset(fn,'r')
     nm = fn.split('_')[0]
     #-----Params for velocity processing----------------
     shapefile_dir = config['shapefile_dir']    
@@ -145,7 +144,7 @@ def generateCrops(fn, incidenceAngle, azimuthAngle, config):
     sin_az = np.sin(azimuthAngle*deg2rad)
     cos_az = np.cos(azimuthAngle*deg2rad)
     #----------- Angle u-----------------------
-    demsp = gdal.Open(config['dem']['Slope'])   
+    demsp = gdal.Open('../dem_slope.tif')   
     projs = demsp.GetProjection()
     geo = demsp.GetGeoTransform()
     nodata = demsp.GetRasterBand(1).GetNoDataValue()
