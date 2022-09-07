@@ -54,66 +54,52 @@ Output files may include all or few
 
 ***NOTE:*** After execution of testGeogrid_ISCE.py copy the console outputs into testGeogrid.txt file, as the data from that file would be used by autoRIFT.
 
-### **Running Geogrid for Convertion to Image coordinates** 
+### **Running Batch of Image Pair for velocity estimation** 
 
-Now the only step left is feature tracking using autoRIFT (Autonomous Repeat Image Feature Tracking), it takes the reference and secondary images from ISCE merged output, as well as other local slope image etc,generated from Geogrid step as input.
+For estimating velocity maps for a batch of images, we take in a CSV file as input which contains:
+
+* Pair Name
+* Master and Slave URL
+* Region of Interest (lat/lon) --> Eg: [32.06, 32.77, 76.86, 77.82]
+* Status
+
+Here the batch process is divided in 2 process and can be run in parallel using script ***isce_batch.py*** and ***offset_batch.py***. The "status" in CSV provides the information regarding at which stage the process is at, Status=1 when coregisteration is completed and its waiting fot velocity estimation, at the same time the ones which are not able to complete have Status=-1. Similarly once velocity estimation is completed Status is changed to 2, and if its unsucessful its changed to -2.
+
+For starting the execution of coregistration pipeline ***isce_batch.py*** should be used as shown below.
+
+    python3 isce_batch.py --download_csv CSV_DATA --save_path OUTPUT_PATH --config CONFIG_PATH
 
 ```
-usage: geogrid_autorift/testautoRIFT_ISCE.py [-h] -m INDIR_M -s INDIR_S [-g GRID_LOCATION]
-                            [-o INIT_OFFSET] [-sr SEARCH_RANGE]
-                            [-csmin CHIP_SIZE_MIN] [-csmax CHIP_SIZE_MAX]
-                            [-vx OFFSET2VX] [-vy OFFSET2VY]
-                            [-ssm STABLE_SURFACE_MASK] [-fo OPTICAL_FLAG]
-                            [-nc NC_SENSOR] [-mpflag MPFLAG] [-ncname NCNAME]
-
-Output geo grid
+usage: isce_batch.py [-h] [--save_path SAVE_PATH]
+                     [--download_csv DOWNLOAD_CSV] [--config CONFIG]
 
 optional arguments:
   -h, --help            show this help message and exit
-  -m INDIR_M, --input_m INDIR_M
-                        Input master image file name (in ISCE format and radar
-                        coordinates) or Input master image file name (in
-                        GeoTIFF format and Cartesian coordinates)
-  -s INDIR_S, --input_s INDIR_S
-                        Input slave image file name (in ISCE format and radar
-                        coordinates) or Input slave image file name (in
-                        GeoTIFF format and Cartesian coordinates)
-  -g GRID_LOCATION, --input_g GRID_LOCATION
-                        Input pixel indices file name
-  -csmin CHIP_SIZE_MIN, --input_csmin CHIP_SIZE_MIN
-                        Input chip size min file name
-  -csmax CHIP_SIZE_MAX, --input_csmax CHIP_SIZE_MAX
-                        Input chip size max file name
-  -vx OFFSET2VX, --input_vx OFFSET2VX
-                        Input pixel offsets to vx conversion coefficients file
-                        name
-  -vy OFFSET2VY, --input_vy OFFSET2VY
-                        Input pixel offsets to vy conversion coefficients file
-                        name
-  -ssm STABLE_SURFACE_MASK, --input_ssm STABLE_SURFACE_MASK
-                        Input stable surface mask file name
-  -fo OPTICAL_FLAG, --flag_optical OPTICAL_FLAG
-                        flag for reading optical data (e.g. Landsat): use 1
-                        for on and 0 (default) for off
-  -nc NC_SENSOR, --sensor_flag_netCDF NC_SENSOR
-                        flag for packaging output formatted for Sentinel ("S")
-                        and Landsat ("L") dataset; default is None
-  -mpflag MPFLAG, --mpflag MPFLAG
-                        number of threads for multiple threading (default is
-                        specified by 0, which uses the original single-core
-                        version and surpasses the multithreading routine)
-  -ncname NCNAME, --ncname NCNAME
-                        User-defined filename for the NetCDF output to which
-                        the ROI percentage and the production version will be
-                        appended
-
+  --save_path SAVE_PATH
+                        directory in which orbit file needs to be saved
+  --download_csv DOWNLOAD_CSV
+                        Data CSV file
+  --config CONFIG       Data config file
 ```
 
-Here -mpflag sets the no. of threads for systems with multiple cores in order to reduce inference time using parallel computing. And -ncname specifies the name of the ***NetCDF*** file that would be generated at the end of feature tracking algorithm, which would store all the meta data of the reference and secondary image, as well as the computed velocity in azimuthal and range direction.
+Parallel to execution coregisteration, the offset tracking pipeline can also be started which will check for Status=1 Image pairs and start computing velocity maps for them.
 
-An example command running ***geogrid_autorift/testautoRIFT_ISCE.py*** for performing feature tracking is given below:
-```bash
-> python ./geogrid_autorift/testautoRIFT_ISCE.py -m merged/reference.slc.full -s merged/secondary.slc.full -g window_location.tif -o window_offset.tif -vx window_rdr_off2vel_x_vec.tif -vy window_rdr_off2vel_y_vec.tif -ssm window_stable_surface_mask.tif -mpflag 128 -ncname exp2_nc
+For starting the execution of offset tracking pipeline ***offset_batch.py*** should be used as shown below.
+
+    python3 offset_batch.py --download_csv CSV_DATA --save_path OUTPUT_PATH --config CONFIG_PATH
+
+
+```
+usage: offset_batch.py [-h] [--save_path SAVE_PATH]
+                       [--download_csv DOWNLOAD_CSV] [--config CONFIG]
+
+optional arguments:
+  -h, --help            show this help message and exit
+  --save_path SAVE_PATH
+                        directory in which orbit file needs to be saved
+  --download_csv DOWNLOAD_CSV
+                        Data CSV file
+  --config CONFIG       Data config file
 ```
 
 ### **Post-processing**
