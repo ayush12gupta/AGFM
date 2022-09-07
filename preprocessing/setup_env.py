@@ -62,7 +62,7 @@ def setup(args):
     <property name="output directory">reference</property>
     <property name="polarization">vv</property>
     <property name="safe">['{1}']</property>
-</component>'''.format(args.orbit_path, args.data_pathR + ref_fn)
+</component>'''.format(args.orbit_path, os.path.join(args.data_pathR, ref_fn))
     with open("reference.xml", "w") as fid:
             fid.write(reference_xml)
     
@@ -71,7 +71,7 @@ def setup(args):
     <property name="output directory">secondary</property>
     <property name="polarization">vv</property>
     <property name="safe">['{1}']</property>
-</component>'''.format(args.orbit_path, args.data_pathS + sec_fn)
+</component>'''.format(args.orbit_path, os.path.join(args.data_pathS, sec_fn))
     with open("secondary.xml", "w") as fid:
             fid.write(secondary_xml)
     
