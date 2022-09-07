@@ -12,13 +12,14 @@ parser.add_argument('--secondary', type=str, required=True, help="URL of seconda
 parser.add_argument('--orbit_path', type=str, default="./orbits/", help="directory in which orbit file needs to be saved")
 parser.add_argument('--data_pathR', type=str, default="./data/", help="directory in which reference data files needs to be saved")
 parser.add_argument('--data_pathS', type=str, default="./data/", help="directory in which secondary data files needs to be saved")
-parser.add_argument('--config', type=str, default="./configs/isce_config.json", help="ISCE config file")
+parser.add_argument('--config', type=str, default="/DATA/glacier-vel/Automated_Offset_Tracking/configs/isce_config.json", help="ISCE config file")
 parser.add_argument('--roi', type=str, default=None, help="Region of interest")
 
 args = parser.parse_args()
 
 
 def download_data(args, username, password, url, data_path):
+    print(url.split('/')[-1].split('_'))
     dmy= url.split('/')[-1].split('_')[5]
     sentinel_type = url.split('/')[-1].split('_')[0]
     date, month, yr = dmy[6:8], dmy[4:6], dmy[:4]
@@ -36,7 +37,7 @@ def setup(args):
     """
 
     # Reading config file
-    with open("isce_config.json", 'r') as f:
+    with open(args.config, 'r') as f:
         config = json.load(f)
 
     # Setting region of interest
@@ -52,8 +53,8 @@ def setup(args):
     if not os.path.exists(args.orbit_path):
         os.mkdir(args.orbit_path)
     # Downloading Reference and secondary images
-    ref_fn = download_data(args, args.reference, args.data_pathR)
-    sec_fn = download_data(args, args.secondary, args.data_pathS)
+    ref_fn = download_data(args, config['ASF_user'], config['ASF_password'], args.reference, args.data_pathR)
+    sec_fn = download_data(args, config['ASF_user'], config['ASF_password'], args.secondary, args.data_pathS)
 
     # Setup secondary.xml and reference.xml
     reference_xml = '''<component name="reference">

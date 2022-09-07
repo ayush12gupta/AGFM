@@ -1,89 +1,53 @@
 # Glacier Flow Analysis using SAR Data
 
-This repo contains the code for setting up the folder structure as well as some of the postprocessing steps. For feature tracking we have used [autoRIFT](https://github.com/nasa-jpl/autoRIFT.git) and for co-registration of SAR Images we have used [ISCE](https://github.com/isce-framework/isce2), we have provided instuctions on how to [install ISCE](docs/ISCE Installation.pdf).
+This repo contains the code for fully automated SAR based Offset tracking which can be used in various applicaitons we have some demos showing Offset tracking for glacier velocity estimation. For feature tracking we have used [autoRIFT](https://github.com/nasa-jpl/autoRIFT.git) and for co-registration of SAR Images we have used [ISCE](https://github.com/isce-framework/isce2), we have provided instuctions on how to [install ISCE](docs/ISCE Installation.pdf).
 
-Follow instuctions given in [*INSTRUCTION.md*](docs/INSTRUCTION.md) for setting up the ISCE file structure for running ***topsApp.py***. Once the co-registeration has been completed it would generate ***./merged/reference.slc.full*** and ***./merged/secondary.slc.full***, which are merged and co-registered reference and secondary images respectively.
+We support processing a batch of SAR Image for velocity estimation as well.
 
-### **Running Geogrid for Convertion to Image coordinates** 
-Now, since the pre-processing is completed, we use Geogrid for mapping data from geographic coordinates to image coordinates, which takes in following parameters as input:-
+### **Running Single Image Pair velocity estimation** 
+The overall pipeline of single task processing is shown in figure below. We just need to provide the reference and secondary image pair URL, which can be obtained from [ASF Platform](https://search.asf.alaska.edu/#). Script ***single_process.py*** is used for single image pair velocity estimation, it takes in following parameters as input:-
 
-* Reference (-m) and Coregistered Secondary Image (-s)
-* SRTM DEM i.e. Digital Elevation Model (-d)
-* Local surface slopes along X and Y directions separately (-sx and -sy)
-* Pixel wise maximum and minimum chip size for the region [OPTIONAL] (-csmaxx/y and -csminx/y)
-* Reference velocity i.e. velocity results from some other study [OPTIONAL] (-vx and -vy)
+* Reference Image URL (-reference) and Secondary Image URL(--secondary)
+* Save path i.e. directory in which files will be saved (--save_path)
+* Velocity output file names (--netCDF_out)
+* DATA Config file containing coregistration parameters [DEFAULT](./configs/isce_config.json) (--config)
+
+An example command calling single_process.py has been given below.
+       
+    python single_process.py --reference REFERENCE_URL --secondary SECONDARY_URL --save_path OUT_PATH --netCDF_out POST_FILENAME
 
 ```
-usage: geogrid_autorift/testGeogrid_ISCE.py [-h] -m INDIR_M -s INDIR_S -d DEMFILE
-                           [-sx DHDXFILE] [-sy DHDYFILE] [-vx VXFILE]
-                           [-vy VYFILE] [-csminx CSMINXFILE] 
-                           [-csminy CSMINYFILE] [-csmaxx CSMAXXFILE]
-                           [-csmaxy CSMAXYFILE] [-ssm SSMFILE] 
-                           [-fo OPTICAL_FLAG]
-
-Output geo grid
+usage: single_process.py [-h] [--reference REFERENCE] [--secondary SECONDARY]
+                         [--save_path SAVE_PATH] [--netCDF_out NETCDF_OUT]
+                         [--config CONFIG]
 
 optional arguments:
   -h, --help            show this help message and exit
-  -m INDIR_M, --input_m INDIR_M
-                        Input folder with ISCE swath files for master image or
-                        master image file name (in GeoTIFF format and
-                        Cartesian coordinates)
-  -s INDIR_S, --input_s INDIR_S
-                        Input folder with ISCE swath files for slave image or
-                        slave image file name (in GeoTIFF format and Cartesian
-                        coordinates)
-  -d DEMFILE, --dem DEMFILE
-                        Input DEM
-  -sx DHDXFILE, --dhdx DHDXFILE
-                        Input slope in X
-  -sy DHDYFILE, --dhdy DHDYFILE
-                        Input slope in Y
-  -vx VXFILE, --vx VXFILE
-                        Input velocity in X
-  -vy VYFILE, --vy VYFILE
-                        Input velocity in Y
-  -csminx CSMINXFILE, --csminx CSMINXFILE
-                        Input chip size min in X
-  -csminy CSMINYFILE, --csminy CSMINYFILE
-                        Input chip size min in Y
-  -csmaxx CSMAXXFILE, --csmaxx CSMAXXFILE
-                        Input chip size max in X
-  -csmaxy CSMAXYFILE, --csmaxy CSMAXYFILE
-                        Input chip size max in Y
-  -ssm SSMFILE, --ssm SSMFILE
-                        Input stable surface mask
-  -fo OPTICAL_FLAG, --flag_optical OPTICAL_FLAG
-                        flag for reading optical data (e.g. Landsat): use 1
-                        for on and 0 (default) for off
+  --reference REFERENCE
+                        URL of reference zip file
+  --secondary SECONDARY
+                        URL of secondary zip file
+  --save_path SAVE_PATH
+                        directory in which orbit file needs to be saved
+  --netCDF_out NETCDF_OUT
+                        Output netCDF file
+  --config CONFIG       Data config file
 
 ```
 
-Here we would have to convert all the inputs from WGS84 to UTM projection, it can be done using this command:
-```bash
-> gdalwarp -s_srs "EPSG:4326" -t_srs '+proj=utm +zone=43 +datum=WGS84 +units=m +no_defs' -of GTIFF INPUT_PATH OUTPUT_TIF_PATH
-```
-For the case of Himalayas it lies in zone 43 of UTM projection, adjust that value accordingly.
+***NOTE:*** The offset tracking chipsize and num of threads used can be changed from data_config.json, and the parameters for coregisteration can be changed from isce_config.json changing the Region of Interest. 
 
-We can directly use the DEM that is automatically downloaded by ISCE during pre-processing step, and convert it to UTM projection. And the local slopes along X and Y directions seperately, can be computed using ***DirectionalSlope*** plugin of **QGIS**.
+During coregisteration ISCE automatically downloads the DEM files which are then processed later automatically to generate DEM and Slope files for ROI.
 
-And for chip size if you have a reference velocity ( i.e. results from some other study ) for that region using, then you can allocate the chip size according to it, i.e. setting smaller chip min and max chip size for region having higher reference velocity, and for stable region ( velocity <15 m/yr ) we can set larger min and max chip sizes. However, if you don't have a reference velocity, it can be ignored as in that case, default min and max chip size would be used uniformy for all the regions
+After autoRIFT algorithm is performed on the coregistered Master and Slave image, the offset maps are then used to compute velocities in radar amd azimuth directions. After, which postprocessing can then be applied using a custom post-processing function defined in ***geogrid_autorift/util.py***. 
 
-For running the geogrid script, ***geogrid_autorift/testGeogrid_ISCE.py*** is used. An example command calling testGeogrid_ISCE.py has been given below.
-```bash
-> python geogrid_autorift/testGeogrid_ISCE.py -m fine_coreg -s secondary -d demtest_roi.tif -sx demtest_roi_X.tif -sy demtest_roi_Y.tif -vx ref_velx.tif -vy ref_vely.tif -ssm ssm.tif
-```
 
 Output files may include all or few
 ```
-"winlocname":        range/azimuth pixel indices (2-band; in units of integer image pixels), 
-"winoffname":        downstream search (expected) range/azimuth pixel displacement (2-band; in units of integer image pixels), 
-"winsrname":         range/azimuth search range (2-band; in units of integer image pixels), 
-"wincsminname":      range/azimuth chip size minimum (2-band; in units of integer image pixels), 
-"wincsmaxname":      range/azimuth chip size maximum (2-band; in units of integer image pixels), 
-"winssmname":        stable surface mask (boolean), 
-"winro2vxname":      2-by-1 conversion coefficients from radar range/azimuth displacement to x-direction motion velocity (3-band; 3rd band is conversion coefficient from range pixel displacement to range motion velocity), 
-"winro2vyname":      2-by-1 conversion coefficients from radar range/azimuth displacement to y-direction motion velocity (3-band; 3rd band is conversion coefficient from azimuth pixel displacement to azimuth motion velocity). 
+"velocity.tif":           velocity in azimuth and range directions,
+"offset.tif":             displacement offsets in azimuth and range directions, 
+"testGeogrid.txt":        metadata of SAR image pairs, 
+"Post-processed Output":  outputs generated from custom post-processing function, 
 ```
 
 ***NOTE:*** After execution of testGeogrid_ISCE.py copy the console outputs into testGeogrid.txt file, as the data from that file would be used by autoRIFT.
