@@ -1,3 +1,4 @@
+import os
 import subprocess, sys
 from pyproj import Transformer
 from osgeo import gdal, osr
@@ -13,7 +14,7 @@ def execute(cmd):
 
 def getazimuthAngle(filename):
     from zipfile import ZipFile
-    
+    print(filename)
     with ZipFile(filename, 'r') as zipObj:
         listOfiles = zipObj.namelist()
         for l in listOfiles:
@@ -25,7 +26,7 @@ def getazimuthAngle(filename):
     return azimuth_angle
 
 
-def horn_gradient(z):
+def horn_gradient(z, geo):
     """calculate x and y gradients according to Horn (1981) method"""
 
     nrows, ncols = z.shape
@@ -53,6 +54,9 @@ def horn_gradient(z):
     dz_dy_tmp = (z_20+2.0*z_21+z_22-z_00-2.0*z_01-z_02)/8.0	
     dz_dy = np.zeros((nrows, ncols))
     dz_dy[1:-1,1:-1] = dz_dy_tmp
+
+    dz_dy = dz_dy/geo[1]
+    dz_dx = dz_dx/geo[5]
     
     return (dz_dy, dz_dx)
 
@@ -67,7 +71,8 @@ def generate_dem_products(dem_dir, bbox):
 
     bbox = np.array(bbox[1:-1].replace(' ','').split(',')).astype('float')
     zone = round((180+bbox[2])/6)
-    execute(f'gdalwarp -s_srs "EPSG:4326" -t_srs "+proj=utm +zone={zone} +datum=WGS84 +units=m +no_defs" -of GTIFF {dem_dir} dem.tif')
+    if not os.path.exists('dem.tif'):
+        execute(f'gdalwarp -s_srs "EPSG:4326" -t_srs "+proj=utm +zone={zone} +datum=WGS84 +units=m +no_defs" -of GTIFF {dem_dir} dem.tif')
 
     transformer = Transformer.from_crs("epsg:4326","epsg:32643")
     xl,yt = bbox[0], bbox[2]
@@ -75,7 +80,8 @@ def generate_dem_products(dem_dir, bbox):
     x2,y2 = transformer.transform(xl,yt)
     x3,y3 = transformer.transform(xr,yb)
 
-    execute(f'gdalwarp -te {x2} {y2} {x3} {y3} dem.tif dem_crop.tif')
+    if not os.path.exists('dem_crop.tif'):
+        execute(f'gdalwarp -te {x2} {y2} {x3} {y3} dem.tif dem_crop.tif')
     execute('rm dem.tif')
 
     demvel = gdal.Open('dem_crop.tif')
@@ -87,10 +93,12 @@ def generate_dem_products(dem_dir, bbox):
     # Get azimuth angle 
     tree = ET.parse('reference.xml')
     ref_dir = str(tree.getroot().findall(".//*[@name='safe']")[0].text[1:-1])
-    azimuth_angle = getazimuthAngle(ref_dir)
+    azimuth_angle = getazimuthAngle(ref_dir[1:-1])
     dz_dy, dz_dx = horn_gradient(dem, geo)
     slopey = directional_slope(dz_dx, dz_dy, float(azimuth_angle))
+    slopey = np.arctan(slopey)*(180.0)/np.pi
     slopex = directional_slope(dz_dx, dz_dy, (float(azimuth_angle)+90))
+    slopex = np.arctan(slopex)*(180.0)/np.pi
     slope = np.sqrt(slopey**2 + slopex**2)
     D = np.arctan(slope)*(180.0)/np.pi
 

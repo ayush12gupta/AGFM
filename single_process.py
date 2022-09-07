@@ -34,11 +34,14 @@ def main():
     os.chdir(args.save_path)
 
     # Setting up ISCE enivonment for coregisteration
-    execute(f'python3 {cwd}/preprocessing/setup_env.py --config {cwd}/configs/isce_config.json --reference {args.reference} --secondary {args.secondary} --orbit_path {config["Orbit_data"]} --data_pathR {config["SAR_dir"]} --data_pathS {config["SAR_dir"]}')
+    execute(f'python3 {cwd}/preprocessing/setup_env.py --config {cwd}/configs/isce_config.json --reference {args.reference} --secondary {args.secondary} --orbit_path {config["Orbit_dir"]} --data_pathR {config["SAR_dir"]} --data_pathS {config["SAR_dir"]}')
     ## NOTE: Document the changes in mergebursts to incorporate multilooking of .slc.full
 
+    ### HARDCODED ###
+    execute('cp -r ../geogrid_req/dem/demLat_N31_N34_Lon_E076_E079* ./')
+    
     if not os.path.exists('merged/secondary.slc.full'):
-        execute('time topsApp.py topsApp.xml --start=startup --end=mergebursts')
+        execute(f'time {cwd}/topsApp.py topsApp.xml --start=startup --end=mergebursts')
 
     dem_dirs = [d for d in os.listdir('./') if (d[-5:]=='wgs84')&(d[:6]=='demLat')]
     generate_dem_products(dem_dirs[0], isce_config['ROI'])
@@ -51,3 +54,7 @@ def main():
         os.chdir(cwd)
         print("Some issue with ISCE coregisteration. Please look at log. Exiting.....")
         raise SystemExit()
+
+
+if __name__=='__main__':
+    main()

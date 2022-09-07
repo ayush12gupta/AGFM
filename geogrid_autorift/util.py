@@ -149,6 +149,7 @@ def generateCrops(fn, incidenceAngle, azimuthAngle, config):
     geo = demsp.GetGeoTransform()
     nodata = demsp.GetRasterBand(1).GetNoDataValue()
     angle_u = demsp.GetRasterBand(1).ReadAsArray()*deg2rad
+    angle_u = angle_u[1:,1:]
     angle_u_nodt = (angle_u==nodata)
     demsp = None
     #----------- Compute angle Va and Vr------------------------
@@ -162,13 +163,14 @@ def generateCrops(fn, incidenceAngle, azimuthAngle, config):
 
     va = (vy*cos_az) - (vx*sin_az)
     vr = (vx*cos_az) + (vy*sin_az)
-
+    
     nodata = (va!=0)
     tmp = np.zeros_like(vr)
     tmp[nodata] = (vr*sin_incid)[nodata]/va[nodata]
     angle_v = np.arctan(tmp)
 
     ## VF
+    print(vr.shape, angle_u.shape)
     vf = vr*(((np.cos(angle_u)* np.sin(angle_v))*sin_incid) - (cos_incid*np.sin(angle_u))) + va*(np.cos(angle_u)*np.cos(angle_v))
     vf[angle_u_nodt] = 0
     vf[vx_nodt] = -32767

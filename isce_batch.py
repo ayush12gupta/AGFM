@@ -32,10 +32,11 @@ def main():
         os.chdir(year)
         os.makedirs(str(row['Start Date']), exist_ok=True)
         os.chdir(str(row['Start Date']))
-        execute(f'python3 {cwd}/preprocessing/setup_env.py --roi {row["ROI"]} --reference {config["SAR_dir"]}/{year} --secondary {config["SAR_dir"]}/{year} --orbit_path {config["Orbit_data"]} --data_pathR {config["SAR_dir"]}/{year} --data_pathS {config["SAR_dir"]}/{year}')
+        execute(f'python3 {cwd}/preprocessing/setup_env.py --roi "{row["ROI"]}" --reference {row["Master"]} --secondary {row["Slave"]} --orbit_path {config["Orbit_dir"]} --data_pathR {config["SAR_dir"]}/{year} --data_pathS {config["SAR_dir"]}/{year}')
         
         if not os.path.exists('merged/secondary.slc.full'):
-            execute('time topsApp.py topsApp.xml --start=startup --end=mergebursts')
+            execute('cp -r /DATA/glacier-vel/geogrid_req/dem/demLat_N31_N34_Lon_E076_E079* ./')
+            execute(f'time {cwd}/topsApp.py topsApp.xml --start=startup --end=mergebursts')
             dem_dirs = [d for d in os.listdir('./') if (d[-5:]=='wgs84')&(d[:6]=='demLat')]
             generate_dem_products(dem_dirs[0], row['ROI'])
         
