@@ -11,7 +11,6 @@ from geogrid_autorift.util import numpy_array_to_raster
 def execute(cmd):
     subprocess.check_call(cmd, shell=True, stdout=sys.stdout, stderr=subprocess.STDOUT)
 
-
 def getazimuthAngle(filename):
     from zipfile import ZipFile
     print(filename)

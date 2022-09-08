@@ -1,4 +1,5 @@
 import os
+import glob
 import json
 import argparse
 import pandas as pd
@@ -25,7 +26,16 @@ def main():
     cwd = os.getcwd()
 
     data_pairs = pd.read_csv(args.download_csv, header=0)
-    for i, row in data_pairs.iterrows():
+    # for i, row in data_pairs[100:].iterrows():
+    while ((data_pairs['Status']==0).sum()):
+        
+        data_pairs = pd.read_csv(args.download_csv, header=0)
+        row = data_pairs[data_pairs['Status']==0].iloc[0]
+        index = data_pairs[data_pairs['Start Date']==row['Start Date']].index[0]
+
+        if row['Status']!=0:
+            continue
+
         os.chdir(args.save_path)
         year = str(row['Start Date'][:4])
         os.makedirs(year, exist_ok=True)
@@ -36,17 +46,26 @@ def main():
         
         if not os.path.exists('merged/secondary.slc.full'):
             execute('cp -r /DATA/glacier-vel/geogrid_req/dem/demLat_N31_N34_Lon_E076_E079* ./')
-            execute(f'time {cwd}/topsApp.py topsApp.xml --start=startup --end=mergebursts')
-            dem_dirs = [d for d in os.listdir('./') if (d[-5:]=='wgs84')&(d[:6]=='demLat')]
-            generate_dem_products(dem_dirs[0], row['ROI'])
-        
+            out = execute(f'time {cwd}/topsApp.py topsApp.xml --start=startup --end=mergebursts')
+            if out==0:
+                data_pairs = pd.read_csv(args.download_csv, header=0)
+                data_pairs.at[index,'Status'] = -1  # Error in ISCE
+                print("Some issue with ISCE coregisteration. Check for status -1 in CSV file")
+                continue
+
         if os.path.exists('merged/secondary.slc.full'):
             print(os.getcwd(), "Coregisteration complete")
-            execute(f'python {cwd}/geogrid_autorift/topsinsar_filename.py')
-            data_pairs.at[i,'Status'] = 1
+            dem_dirs = glob.glob('./demLat*wgs84')
+            # dem_dirs = [d for d in os.listdir('./') if (d[-5:]=='wgs84')&(d[:6]=='demLat')]
+            generate_dem_products(dem_dirs[0], row['ROI'])
+            execute(f'python3 {cwd}/geogrid_autorift/topsinsar_filename.py')
+                
+            data_pairs = pd.read_csv(args.download_csv, header=0)
+            data_pairs.at[index,'Status'] = 1
             data_pairs.to_csv(args.download_csv, index=False)
         else:
-            data_pairs.at[i,'Status'] = -1  # Error in ISCE
+            data_pairs = pd.read_csv(args.download_csv, header=0)
+            data_pairs.at[index,'Status'] = -1  # Error in ISCE
             print("Some issue with ISCE coregisteration. Check for status -1 in CSV file")
 
         data_pairs.to_csv(args.download_csv, index=False)

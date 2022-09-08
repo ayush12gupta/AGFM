@@ -1,5 +1,6 @@
 import os, glob
 import json
+import time
 import argparse
 import pandas as pd
 
@@ -26,15 +27,22 @@ def main():
     while ((data_pairs['Status']==0).sum()+(data_pairs['Status']==1).sum()):
 
         data_pairs = pd.read_csv(args.download_csv, header=0)
+        
+        if len(data_pairs[data_pairs['Status']==1])==0:
+            time.sleep(60)
+            continue
+        
         row = data_pairs[data_pairs['Status']==1].iloc[0]
-        index = data_pairs[data_pairs['Start Date']==row['Start Date']].index        
+        index = data_pairs[data_pairs['Start Date']==row['Start Date']].index[0]        
         os.chdir(args.save_path)
         year = str(row['Start Date'][:4])
         os.chdir(os.path.join(year, str(row['Start Date'])))
+        print(os.getcwd())
         if os.path.exists('merged/secondary.slc.full'):
             offset_tracking(config, cwd, str(row['Start Date']).replace('-',''))
         
-        if len(glob.glob(os.path.join(str(row['Start Date']).replace('-','')+'*.nc'))):
+        data_pairs = pd.read_csv(args.download_csv, header=0)
+        if os.path.exists('velocity.tif'):
             data_pairs.at[index,'Status'] = 2
         else:
             data_pairs.at[index,'Status'] = -2
