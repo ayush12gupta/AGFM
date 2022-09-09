@@ -56,7 +56,7 @@ Output files may include all or few
 
 ### **Running Batch of Image Pair for velocity estimation** 
 
-For estimating velocity maps for a batch of images, we take in a CSV file as input which contains:
+For estimating velocity maps for a batch of images, we take in a [CSV file](./data/data_download1.csv) as input which contains:
 
 * Pair Name
 * Master and Slave URL
