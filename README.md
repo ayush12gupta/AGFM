@@ -82,7 +82,7 @@ optional arguments:
   --config CONFIG       Data config file
 ```
 
-Parallel to execution coregisteration, the offset tracking pipeline can also be started which will check for Status=1 Image pairs and start computing velocity maps for them.
+Parallel to executing coregisteration pipeline, the offset tracking pipeline can also be started which will check for Status=1 Image pairs and start computing velocity maps for them.
 
 For starting the execution of offset tracking pipeline ***offset_batch.py*** should be used as shown below.
 
