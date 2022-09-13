@@ -55,7 +55,7 @@ Output files may include all or few
 
 ### **Running Batch of Image Pair for velocity estimation** 
 
-For estimating velocity maps for a batch of images, we take in a CSV file as input which contains:
+For estimating velocity maps for a batch of images, we take in a [CSV file](./data/data_download1.csv) as input which contains:
 
 * Pair Name
 * Master and Slave URL
@@ -81,7 +81,7 @@ optional arguments:
   --config CONFIG       Data config file
 ```
 
-Parallel to execution coregisteration, the offset tracking pipeline can also be started which will check for Status=1 Image pairs and start computing velocity maps for them.
+Parallel to executing coregisteration pipeline, the offset tracking pipeline can also be started which will check for Status=1 Image pairs and start computing velocity maps for them.
 
 For starting the execution of offset tracking pipeline ***offset_batch.py*** should be used as shown below.
 
