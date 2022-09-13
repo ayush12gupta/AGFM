@@ -98,7 +98,7 @@ def generate_dem_products(dem_dir, bbox):
     slopey = np.arctan(slopey)*(180.0)/np.pi
     slopex = directional_slope(dz_dx, dz_dy, (float(azimuth_angle)+90))
     slopex = np.arctan(slopex)*(180.0)/np.pi
-    slope = np.sqrt(slopey**2 + slopex**2)
+    slope = np.sqrt(dz_dx**2 + dz_dy**2)
     D = np.arctan(slope)*(180.0)/np.pi
 
     # Saving slope along X and Y directions

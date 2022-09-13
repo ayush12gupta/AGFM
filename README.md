@@ -5,10 +5,9 @@ This repo contains the code for fully automated SAR based Offset tracking which 
 We support processing a batch of SAR Image for velocity estimation as well.
 
 ### **Running Single Image Pair velocity estimation** 
-The overall pipeline of single task processing is shown in figure below. We just need to provide the reference and secondary image pair URL, which can be obtained from [ASF Platform](https://search.asf.alaska.edu/#). Script ***single_process.py*** is used for single image pair velocity estimation, it takes in following parameters as input:-
-
+The overall pipeline of single task processing is shown in figure below. 
 ![Pipeline for Velocity Estimation](./docs/overall_pipeline.png)
-
+We just need to provide the reference and secondary image pair URL, which can be obtained from [ASF Platform](https://search.asf.alaska.edu/#). Script ***single_process.py*** is used for single image pair velocity estimation, it takes in following parameters as input:-
 * Reference Image URL (-reference) and Secondary Image URL(--secondary)
 * Save path i.e. directory in which files will be saved (--save_path)
 * Velocity output file names (--netCDF_out)
