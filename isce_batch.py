@@ -5,7 +5,6 @@ import argparse
 import pandas as pd
 
 from utils import execute, generate_dem_products
-from offset_tracking import offset_tracking
 
 
 parser = argparse.ArgumentParser()
