@@ -334,9 +334,12 @@ def generateFile(obj, xlim, ylim):
     from iscesys import DateTimeUtil as DTU
     import xml.etree.ElementTree as ET
     
-    tree = ET.parse(obj.ref_fn[::-1].split('/', 1)[-1][::-1] + '/reference.xml')
-    ref_dir = str(tree.getroot().findall(".//*[@name='safe']")[0].text[1:-1])
-    azimuth_angle = getazimuthAngle(ref_dir[1:-1])
+    try:
+        tree = ET.parse(obj.ref_fn[::-1].split('/', 1)[-1][::-1] + '/reference.xml')
+        ref_dir = str(tree.getroot().findall(".//*[@name='safe']")[0].text[1:-1])
+        azimuth_angle = getazimuthAngle(ref_dir[1:-1])
+    except:
+        azimuth_angle = 0
     grd_res = obj.rangePixelSize / math.sin(obj.incidenceAngle)
     sensingStart = DTU.seconds_since_midnight(obj.sensingStart)
     tmid = obj.sensingStart + datetime.timedelta(seconds = (np.floor(obj.numberOfLines/2)-1) / obj.prf)

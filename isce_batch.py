@@ -8,7 +8,7 @@ from utils import execute, generate_dem_products
 
 
 parser = argparse.ArgumentParser()
-parser.add_argument('--save_path', type=str, default="./outptut", help="directory in which orbit file needs to be saved")
+parser.add_argument('--save_path', type=str, default="./output", help="directory in which orbit file needs to be saved")
 parser.add_argument('--download_csv', type=str, default="./data/data_download.csv", help="Data CSV file")
 parser.add_argument('--config', type=str, default="./configs/data_config.json", help="Data config file")
 

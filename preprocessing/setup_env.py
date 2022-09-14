@@ -18,7 +18,7 @@ parser.add_argument('--roi', type=str, default=None, help="Region of interest")
 args = parser.parse_args()
 
 
-def download_data(args, username, password, url, data_path):
+def download_data(username, password, url, data_path, orbit_path):
     print(url.split('/')[-1].split('_'))
     dmy= url.split('/')[-1].split('_')[5]
     sentinel_type = url.split('/')[-1].split('_')[0]
@@ -27,7 +27,7 @@ def download_data(args, username, password, url, data_path):
     rt = os.system("wget " + url + " -P " + data_path + " --user=" + username + " --password=" + password + " -nc")
     if rt!=0:
         print("Failed downloading ", url)
-    get_orbit_fl(sentinel_type, date, month, yr, args.orbit_path)
+    get_orbit_fl(sentinel_type, date, month, yr, orbit_path)
     return url.split('/')[-1]
 
 
@@ -53,8 +53,8 @@ def setup(args):
     if not os.path.exists(args.orbit_path):
         os.mkdir(args.orbit_path)
     # Downloading Reference and secondary images
-    ref_fn = download_data(args, config['ASF_user'], config['ASF_password'], args.reference, args.data_pathR)
-    sec_fn = download_data(args, config['ASF_user'], config['ASF_password'], args.secondary, args.data_pathS)
+    ref_fn = download_data(config['ASF_user'], config['ASF_password'], args.reference, args.data_pathR, args.orbit_path)
+    sec_fn = download_data(config['ASF_user'], config['ASF_password'], args.secondary, args.data_pathS, args.orbit_path)
 
     # Setup secondary.xml and reference.xml
     reference_xml = '''<component name="reference">
