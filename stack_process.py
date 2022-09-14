@@ -32,9 +32,52 @@ def download_data(username, password, url, data_path, orbit_path):
     return url.split('/')[-1]
 
 
-def offset_tracking(csv_file):
+def offset_tracking(config, cwd, master, slave, netCDF_out):
 
-    pairs = pd.read_csv(csv_file, index=0)
+    # try:
+    #     execute('rm -rf geom_reference/ fine_offsets/ fine_interferogram/ coarse_* ESD/ PICKLE/')
+    #     execute('rm merged/z.rdr.full.* merged/lat.rdr.full.* merged/los.rdr.full.* merged/lon.rdr.full.* merged/pwr.bil* demLat_N31_N34_Lon_E076_E079.dem*')
+    # except:
+    #     print("Can't remove extra files")
+    # os.chdir("./offset_tracking")
+    # if not os.path.exists('window_location.tif'):
+    #     execute(f'python {cwd}/geogrid_autorift/testGeogrid_ISCE.py -m ../../reference -s ../../secondary -d ../dem_crop.tif -sx ../dem_x.tif -sy ../dem_x.tif')         #  -ssm {config["ssm"]}
+    # else:
+    #     print("./window_location.tif  ---> Already exists")
+    
+    if os.path.exists(f'../../merged/{master}.slc.full')&os.path.exists(f'../../merged/{slave}.slc.full'):
+        cmd = f'time python {cwd}/geogrid_autorift/testautoRIFT_ISCE.py -m ../../merged/{master}.slc.full -s ../../merged/{slave}.slc.full -g ../window_location.tif -chipmax {config["chip_max"]} -chipmin {config["chip_min"]} -mpflag {str(config["num_threads"])} -config {cwd}/configs/data_config.json -ncname {netCDF_out} -vx ../window_rdr_off2vel_x_vec.tif -vy ../window_rdr_off2vel_y_vec.tif' #-ssm window_stable_surface_mask.tif -nc S'
+        execute(cmd)
+    else:
+        print("Coregistered images not available check isce.log for issues with ISCE coregisteration")
+    
+    execute('rm window*')
+    print("Offset Tracking completed")
+
+
+def offset_compute(csv_file, config, cwd):
+
+    data_pairs = pd.read_csv(csv_file, header=0)
+    while (data_pairs['Status']==0).sum():
+
+        row = data_pairs[data_pairs['Status']==0].iloc[0]
+        index = data_pairs[data_pairs['Id']==row['Id']].index[0]
+        id  = row['Id']
+        master, slave = row['Master'], row['Slave']
+        os.mkdir(f'./{id}')
+        os.chdir(f'./{id}')
+        if os.path.exists(f'../../merged/{slave}.slc.full'):
+            offset_tracking(config, cwd, str(master), str(slave), id)
+
+        data_pairs = pd.read_csv(csv_file, header=0)
+        if os.path.exists('velocity.tif'):
+            data_pairs.at[index,'Status'] = 1
+        else:
+            data_pairs.at[index,'Status'] = -1
+            print("Some issues with Offset Tracking")
+
+        data_pairs.to_csv(csv_file, index=False)
+        os.chdir('../')
 
 
 def main():
@@ -113,7 +156,8 @@ def main():
 
     print("Starting Offset Tracking")
 
-    # offset_tracking(pair_fn)
+    # offset_tracking(pair_fn, config, cwd)
+    # velocity_correction()
 
 if __name__=='__main__':
     main()
