@@ -37,6 +37,7 @@ def download_data(username, password, url, data_path, orbit_path):
 
 def offset_tracking(config, cwd, master, slave, netCDF_out):
 
+    execute('rm -rf ../coreg_secondarys ../ESD ../misreg')
     execute('cp ../testGeogrid.txt testGeogrid.txt')
     if os.path.exists(f'../../merged/SLC/{master}/{master}.slc.full')&os.path.exists(f'../../merged/SLC/{slave}/{slave}.slc.full'):
         cmd = f'time python {cwd}/geogrid_autorift/testautoRIFT_ISCE.py -m ../../merged/SLC/{master}/{master}.slc.full -s ../../merged/SLC/{slave}/{slave}.slc.full -g ../window_location.tif -chipmax {config["chip_max"]} -chipmin {config["chip_min"]} -mpflag {str(config["num_threads"])} -config {cwd}/configs/data_config.json -ncname {netCDF_out} -vx ../window_rdr_off2vel_x_vec.tif -vy ../window_rdr_off2vel_y_vec.tif -post' #-ssm window_stable_surface_mask.tif -nc S'
@@ -71,9 +72,24 @@ def offset_compute(csv_file, config, cwd):
         data_pairs.to_csv(os.path.join('../', csv_file), index=False)
         os.chdir('../')
 
+    print("Offset Tracking completed")
 
-def velocity_correction(csv_fn, tif_dir, dates):
 
+def compute_svd(A, L, deltaT, dT, nodata, num, N):
+    shp = L[0].shape
+    A = (A*deltaT)
+    L = np.array(L).reshape(num, -1)*deltaT[0]
+    U, s, VT = np.linalg.svd(A, full_matrices=True)
+    S_inv = np.zeros(A.shape).T
+    S_inv[:N-1,:N-1] = np.diag(1/s[:N-1])
+    x_svd = ((VT.T.dot(S_inv).dot(U.T))@L) #.reshape(N, shp[0], shp[1])
+    La = (A@x_svd).reshape(-1, num)/dT
+    La = La.reshape(num, shp[0], shp[1])
+    La[:,nodata] = -32767
+    return La
+
+
+def velocity_correction_band(csv_fn, tif_dir, dates, band=1):
     data = pd.read_csv(csv_fn, header=0)
     num = len(data)
 
@@ -94,33 +110,19 @@ def velocity_correction(csv_fn, tif_dir, dates):
     # deltaT = deltaT[:till]
     idx = 0
     for i, row in data.iterrows():
-        id = row['Id'].split('_')[1]
+        id = row['Id'].split('_')[1:]
         # if int(id[1:])>till:
         #     continue
-        st, ed = int(id[0]), int(id[1:])
-        # print(st, ed)
+        st, ed = int(id[0]), int(id[1])
         A[idx, st:ed] = 1
-        # print(os.getcwd(), os.path.join(tif_dir, row['Id'], 'velocity.tif'))
-        val, nodata = read_vals(os.path.join(tif_dir, row['Id'], 'velocity.tif'), nodat=nodata)
+        val, nodata = read_vals(os.path.join(tif_dir, row['Id'], 'velocity.tif'), nodat=nodata, band=band)
         dT.append(get_DT(row['Master'], row['Slave']))
         L.append(val)
         Ids.append(row['Id'])
         idx += 1
     
-    # print(deltaT, dT, A)
-    A = (A*deltaT)
-    shp = L[0].shape
-    L = np.array(L).reshape(num, -1)*deltaT[0]
-    U, s, VT = np.linalg.svd(A, full_matrices=True)
-    S_inv = np.zeros(A.shape).T
-    S_inv[:N-1,:N-1] = np.diag(1/s[:N-1])
-    # Ab = VT.T.dot(S_inv).dot(U.T)
-    x_svd = ((VT.T.dot(S_inv).dot(U.T))@L) #.reshape(N, shp[0], shp[1])
     dT = np.array(dT)
-    La = (A@x_svd).reshape(-1, num)/dT
-    La = La.reshape(num, shp[0], shp[1])
-    La[:,nodata] = -32767
-    
+    La = compute_svd(A, L, deltaT, dT, nodata, num, N)
     # To get projections and transformations
     ds = gdal.Open(os.path.join(tif_dir, data['Id'][0], 'velocity.tif'))
     projs = ds.GetProjection()
@@ -128,13 +130,50 @@ def velocity_correction(csv_fn, tif_dir, dates):
     ds = None
 
     for i in range(num):
-        ds = numpy_array_to_raster(f'{Ids[i]}.tif', np.array([La[i]]), projs, geo, nband=1)
+        ds = numpy_array_to_raster(f'{Ids[i]}_{band}.tif', np.array([La[i]]), projs, geo, nband=1)
         ds.FlushCache()
         ds = None
 
 
-def main():
+def velocity_correction(csv_fn, tif_dir, dates):
+    '''
+    Performs SVD for least square estimation of velocity correction of 
+    offset tracking results
 
+    csv_file: Path to csv file 'image_pair.csv'
+    tif_dir: Path to offset_tracking tif file results
+    dates: list of acquisition interval
+    '''
+    velocity_correction_band(csv_fn, tif_dir, dates, band=1)
+    velocity_correction_band(csv_fn, tif_dir, dates, band=2)
+    # Merging both the bands and additionally generating resulting velocity band
+    data = pd.read_csv(csv_fn, header=0)
+
+    # To get projections and transformations
+    ds = gdal.Open(f"{data['Id'][0]}_1.tif")
+    projs = ds.GetProjection()
+    geo = ds.GetGeoTransform()
+    ds = None
+
+    for i, row in data.iterrows():
+        val1, _ = read_vals(f"{row['Id']}_1.tif", nodat=None, band=1)
+        val2, _ = read_vals(f"{row['Id']}_2.tif", nodat=None, band=1)
+        nodata1 = (val1==-32767)
+        nodata2 = (val2==-32767) 
+        val3 = np.sqrt(val1**2 + val2**2)
+        val3[nodata1|nodata2] = -32767
+
+        ds = numpy_array_to_raster(f"{row['Id']}.tif", np.array([val3, val1, val2]), projs, geo, nband=3)
+        ds.FlushCache()
+        ds = None
+
+        if os.path.exists(f"{row['Id']}.tif"):
+            execute(f"rm {row['Id']}_*.tif")
+
+    print("Velocity Correction completed")
+
+
+def main():
     # Reading config files
     with open(args.config, 'r') as f:
         config = json.load(f)
@@ -148,7 +187,7 @@ def main():
 
     # if os.path.exists(args.data_path):
     #     shutil.rmtree(args.data_path)
-    os.mkdir(args.data_path)
+    os.makedirs(args.data_path, exist_ok=True)
     cwd = os.getcwd()
     
     for url in urls:
@@ -156,7 +195,7 @@ def main():
 
     # if os.path.exists(args.save_path):
     #     shutil.rmtree(args.save_path)
-    os.mkdir(args.save_path)
+    os.makedirs(args.save_path, exist_ok=True)
     os.chdir(args.save_path)
 
     if len(glob.glob('merged/SLC/*/*.slc.full'))==0:
@@ -188,24 +227,26 @@ def main():
     os.chdir("./offset_tracking")
 
     pair_fn = '../image_pairs.csv'
-    pairs = pd.read_csv('../image_pairs.csv', header=0)
-
     secondarys = sorted(os.listdir('../secondarys'))
-
     if not os.path.exists('window_location.tif'):
         execute(f'python {cwd}/geogrid_autorift/testGeogrid_ISCE.py -m ../reference -s ../secondarys/{secondarys[0]} -d ../dem_crop.tif -sx ../dem_x.tif -sy ../dem_x.tif')   #  -ssm {config["ssm"]}
     else:
         print("./window_location.tif  ---> Already exists")
 
     print("Starting Offset Tracking")
-
-    # offset_compute(pair_fn, config, cwd)
+    offset_compute(pair_fn, config, cwd)
+    
+    print('Starting Velocity Correction ...')
     os.chdir('../')
     if os.path.exists('./velocity_corrected'):
         shutil.rmtree('./velocity_corrected')
         os.makedirs('./velocity_corrected')
     os.chdir('./velocity_corrected')
     velocity_correction(pair_fn, '../offset_tracking/', dates)
+    os.chdir('../')
+
+    execute('rm -rf ./geom_reference ./merged/geom_reference')
+
 
 if __name__=='__main__':
     main()

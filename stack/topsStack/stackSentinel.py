@@ -843,7 +843,7 @@ def ionosphereStack(inps, dateListIon, stackReferenceDate, pairs_same_starting_r
 
 def add_elements(elements, acquisitionDates, gap):
     N = len(acquisitionDates)
-    id = [f'stack_{str(elements[i])}{str(elements[i+gap])}' for i in range(N-gap)]
+    id = [f'stack_{str(elements[i])}_{str(elements[i+gap])}' for i in range(N-gap)]
     master = [acquisitionDates[i] for i in range(N-gap)]
     slave = [acquisitionDates[i+gap] for i in range(N-gap)]
     return id, master, slave

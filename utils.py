@@ -33,13 +33,11 @@ def get_DT(date1, date2):
 
 
 def get_deltaT(dates):
-    
     deltaT = []
     for i in range(len(dates)-1):
         deltaT.append(get_DT(dates[i], dates[i+1]))
 
     return deltaT
-
 
 
 def getazimuthAngle(filename):
