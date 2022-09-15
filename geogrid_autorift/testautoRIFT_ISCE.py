@@ -82,6 +82,8 @@ def cmdLineParse():
             help='flag for packaging output formatted for Sentinel ("S") and Landsat ("L") dataset; default is None')
     parser.add_argument('-mpflag', '--mpflag', dest='mpflag', type=int, required=False, default=0,
             help='number of threads for multiple threading (default is specified by 0, which uses the original single-core version and surpasses the multithreading routine)')
+    parser.add_argument('-post', '--do_postprocess', dest='post', action='store_false', default=True,
+            help='Do postprocessing')
     parser.add_argument('-ncname', '--ncname', dest='ncname', type=str, required=False, default=None,
             help='User-defined filename for the NetCDF output to which the ROI percentage and the production version will be appended')
 
@@ -401,11 +403,11 @@ def main():
                             chip_size_min=inps.chip_size_min,chip_size_max=inps.chip_size_max,
                             offset2vx=inps.offset2vx, offset2vy=inps.offset2vy,
                             stable_surface_mask=inps.stable_surface_mask, optical_flag=inps.optical_flag,
-                            nc_sensor=inps.nc_sensor, mpflag=inps.mpflag, ncname=inps.ncname, post_config=inps.post_config, chip_min=inps.chip_min, chip_max=inps.chip_min)
+                            nc_sensor=inps.nc_sensor, mpflag=inps.mpflag, ncname=inps.ncname, post_config=inps.post_config, chip_min=inps.chip_min, chip_max=inps.chip_min, do_post=inps.post)
 
 
 def generateAutoriftProduct(indir_m, indir_s, grid_location, init_offset, search_range, chip_size_min, chip_size_max,
-                            offset2vx, offset2vy, stable_surface_mask, optical_flag, nc_sensor, mpflag, ncname, post_config,chip_min,chip_max,
+                            offset2vx, offset2vy, stable_surface_mask, optical_flag, nc_sensor, mpflag, ncname, post_config,chip_min,chip_max,do_post,
                             geogrid_run_info=None):
 
     import numpy as np
@@ -507,6 +509,7 @@ def generateAutoriftProduct(indir_m, indir_s, grid_location, init_offset, search
         ds=None
 
 
+    print(do_post)
     intermediate_nc_file = 'autoRIFT_intermediate.nc'
     
     if os.path.exists(intermediate_nc_file):
@@ -1107,7 +1110,8 @@ def generateAutoriftProduct(indir_m, indir_s, grid_location, init_offset, search
             with open(post_config, 'r') as f:
                 config = json.load(f)
 
-            postprocess(ncname, kwargs, config)
+            if do_post:
+                postprocess(ncname, kwargs, config)
         
         print("Write Outputs Done!!!")
         print(time.time()-t1)

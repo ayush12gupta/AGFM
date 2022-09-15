@@ -4,9 +4,12 @@ import time
 import json
 import argparse
 import pandas as pd
+import numpy as np
+from osgeo import gdal
 import xml.etree.ElementTree as ET
 from preprocessing.get_orbit import get_orbit_fl
-from utils import execute, generate_dem_products
+from geogrid_autorift.util import numpy_array_to_raster
+from utils import execute, generate_dem_products, get_deltaT, read_vals, get_DT
 
 
 parser = argparse.ArgumentParser()
@@ -44,14 +47,14 @@ def offset_tracking(config, cwd, master, slave, netCDF_out):
     #     execute(f'python {cwd}/geogrid_autorift/testGeogrid_ISCE.py -m ../../reference -s ../../secondary -d ../dem_crop.tif -sx ../dem_x.tif -sy ../dem_x.tif')         #  -ssm {config["ssm"]}
     # else:
     #     print("./window_location.tif  ---> Already exists")
-    
-    if os.path.exists(f'../../merged/{master}.slc.full')&os.path.exists(f'../../merged/{slave}.slc.full'):
-        cmd = f'time python {cwd}/geogrid_autorift/testautoRIFT_ISCE.py -m ../../merged/{master}.slc.full -s ../../merged/{slave}.slc.full -g ../window_location.tif -chipmax {config["chip_max"]} -chipmin {config["chip_min"]} -mpflag {str(config["num_threads"])} -config {cwd}/configs/data_config.json -ncname {netCDF_out} -vx ../window_rdr_off2vel_x_vec.tif -vy ../window_rdr_off2vel_y_vec.tif' #-ssm window_stable_surface_mask.tif -nc S'
+    # print(os.getcwd(), f'../../merged/SLC/{slave}/{master}.slc.full', f'../../merged/SLC/{slave}/{slave}.slc.full')
+    execute('cp ../testGeogrid.txt testGeogrid.txt')
+    if os.path.exists(f'../../merged/SLC/{master}/{master}.slc.full')&os.path.exists(f'../../merged/SLC/{slave}/{slave}.slc.full'):
+        cmd = f'time python {cwd}/geogrid_autorift/testautoRIFT_ISCE.py -m ../../merged/SLC/{master}/{master}.slc.full -s ../../merged/SLC/{slave}/{slave}.slc.full -g ../window_location.tif -chipmax {config["chip_max"]} -chipmin {config["chip_min"]} -mpflag {str(config["num_threads"])} -config {cwd}/configs/data_config.json -ncname {netCDF_out} -vx ../window_rdr_off2vel_x_vec.tif -vy ../window_rdr_off2vel_y_vec.tif -post' #-ssm window_stable_surface_mask.tif -nc S'
         execute(cmd)
     else:
         print("Coregistered images not available check isce.log for issues with ISCE coregisteration")
     
-    execute('rm window*')
     print("Offset Tracking completed")
 
 
@@ -64,20 +67,81 @@ def offset_compute(csv_file, config, cwd):
         index = data_pairs[data_pairs['Id']==row['Id']].index[0]
         id  = row['Id']
         master, slave = row['Master'], row['Slave']
-        os.mkdir(f'./{id}')
+        os.makedirs(f'./{id}', exist_ok=True)
         os.chdir(f'./{id}')
-        if os.path.exists(f'../../merged/{slave}.slc.full'):
+        if os.path.exists(f'../../merged/SLC/{slave}/{slave}.slc.full'):
             offset_tracking(config, cwd, str(master), str(slave), id)
 
-        data_pairs = pd.read_csv(csv_file, header=0)
+        data_pairs = pd.read_csv(os.path.join('../', csv_file), header=0)
         if os.path.exists('velocity.tif'):
             data_pairs.at[index,'Status'] = 1
         else:
             data_pairs.at[index,'Status'] = -1
             print("Some issues with Offset Tracking")
 
-        data_pairs.to_csv(csv_file, index=False)
+        data_pairs.to_csv(os.path.join('../', csv_file), index=False)
         os.chdir('../')
+
+
+def velocity_correction(csv_fn, tif_dir, dates):
+
+    data = pd.read_csv(csv_fn, header=0)
+    num = len(data)
+
+    assert (num + 6)%3==0
+    N = ((num + 6)//3) - 1
+    deltaT = get_deltaT(sorted(dates))
+    A = np.zeros((num, N))
+    nodata = None
+    L = []
+    Ids = []
+    dT = []
+
+    # till = 3
+    # N = till
+    # num = (3*(till+1))-6
+    # A = np.zeros((num, till))
+    # print(A.shape)
+    # deltaT = deltaT[:till]
+    idx = 0
+    for i, row in data.iterrows():
+        id = row['Id'].split('_')[1]
+        # if int(id[1:])>till:
+        #     continue
+        st, ed = int(id[0]), int(id[1:])
+        # print(st, ed)
+        A[idx, st:ed] = 1
+        # print(os.getcwd(), os.path.join(tif_dir, row['Id'], 'velocity.tif'))
+        val, nodata = read_vals(os.path.join(tif_dir, row['Id'], 'velocity.tif'), nodat=nodata)
+        dT.append(get_DT(row['Master'], row['Slave']))
+        L.append(val)
+        Ids.append(row['Id'])
+        idx += 1
+    
+    # print(deltaT, dT, A)
+    A = (A*deltaT)
+    shp = L[0].shape
+    L = np.array(L).reshape(num, -1)*deltaT[0]
+    U, s, VT = np.linalg.svd(A, full_matrices=True)
+    S_inv = np.zeros(A.shape).T
+    S_inv[:N-1,:N-1] = np.diag(1/s[:N-1])
+    # Ab = VT.T.dot(S_inv).dot(U.T)
+    x_svd = ((VT.T.dot(S_inv).dot(U.T))@L) #.reshape(N, shp[0], shp[1])
+    dT = np.array(dT)
+    La = (A@x_svd).reshape(-1, num)/dT
+    La = La.reshape(num, shp[0], shp[1])
+    La[:,nodata] = -32767
+    
+    # To get projections and transformations
+    ds = gdal.Open(os.path.join(tif_dir, data['Id'][0], 'velocity.tif'))
+    projs = ds.GetProjection()
+    geo = ds.GetGeoTransform()
+    ds = None
+
+    for i in range(num):
+        ds = numpy_array_to_raster(f'{Ids[i]}.tif', np.array([La[i]]), projs, geo, nband=1)
+        ds.FlushCache()
+        ds = None
 
 
 def main():
@@ -95,16 +159,17 @@ def main():
 
     # if os.path.exists(args.data_path):
     #     shutil.rmtree(args.data_path)
-    # os.mkdir(args.data_path)
+    os.mkdir(args.data_path)
     cwd = os.getcwd()
     
-    # for url in urls:
-    #     download_data(config_isce['ASF_user'], config_isce['ASF_password'], url, args.data_path, config['Orbit_dir'])
+    for url in urls:
+        download_data(config_isce['ASF_user'], config_isce['ASF_password'], url, args.data_path, config['Orbit_dir'])
 
-    if os.path.exists(args.save_path):
-        shutil.rmtree(args.save_path)
+    # if os.path.exists(args.save_path):
+    #     shutil.rmtree(args.save_path)
     os.mkdir(args.save_path)
     os.chdir(args.save_path)
+
     if len(glob.glob('merged/SLC/*/*.slc.full'))==0:
         print(config_isce["ROI"][1:-1].replace(',',''))
         execute('cp -r /DATA/glacier-vel/geogrid_req/dem/demLat_N31_N34_Lon_E076_E079* ./')
@@ -127,37 +192,31 @@ def main():
 
     # Preparing for geogrid
     dem = glob.glob('*.wgs84')
-    generate_dem_products(dem[0], config_isce["ROI"])
-    xmlCoreg = glob.glob('coreg_secondarys/*/IW*.xml')
-    for xml in xmlCoreg:
-        tree = ET.parse(xml)
-        root = tree.getroot()
-        for state in root.findall('component'):
-            if state.find('factoryname').text=='coregSwathSLCProduct':
-                if state.find('factorymodule').text=='coregSwathSLCProduct':
-                    state.find('factorymodule').text = 'contrib.stack.topsStack.coregSwathSLCProduct'
-
-        tree.write(xml)
+    generate_dem_products(dem[0], config_isce["ROI"], config)
     
+    dates = os.listdir('merged/SLC/')
     os.makedirs('./offset_tracking', exist_ok=True)
     os.chdir("./offset_tracking")
 
     pair_fn = '../image_pairs.csv'
-    pairs = pd.read_csv('../image_pairs.csv', index=0)
-    # for i, row in pairs.iterrows():
-    #     if os.path.exists(f'merged/SLC/{row[]}')
+    pairs = pd.read_csv('../image_pairs.csv', header=0)
 
-    secondarys = sorted(os.listdir('../coreg_secondarys'))
+    secondarys = sorted(os.listdir('../secondarys'))
 
     if not os.path.exists('window_location.tif'):
-        execute(f'python {cwd}/geogrid_autorift/testGeogrid_ISCE.py -m ../reference -s ../coreg_secondarys/{secondarys[1]} -d ../dem_crop.tif -sx ../dem_x.tif -sy ../dem_x.tif')   #  -ssm {config["ssm"]}
+        execute(f'python {cwd}/geogrid_autorift/testGeogrid_ISCE.py -m ../reference -s ../secondarys/{secondarys[0]} -d ../dem_crop.tif -sx ../dem_x.tif -sy ../dem_x.tif')   #  -ssm {config["ssm"]}
     else:
         print("./window_location.tif  ---> Already exists")
 
     print("Starting Offset Tracking")
 
-    # offset_tracking(pair_fn, config, cwd)
-    # velocity_correction()
+    # offset_compute(pair_fn, config, cwd)
+    os.chdir('../')
+    if os.path.exists('./velocity_corrected'):
+        shutil.rmtree('./velocity_corrected')
+        os.makedirs('./velocity_corrected')
+    os.chdir('./velocity_corrected')
+    velocity_correction(pair_fn, '../offset_tracking/', dates)
 
 if __name__=='__main__':
     main()

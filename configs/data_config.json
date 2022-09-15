@@ -13,5 +13,6 @@
             "X": "./data/dem_roi_X.tif",
             "Y": "./data/dem_roi_Y.tif"
         },
-    "ssm": "ssm.tif"
+    "ssm": "ssm.tif",
+    "azimuthAngle": 12.8160
 }

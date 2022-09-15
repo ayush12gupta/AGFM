@@ -3,6 +3,7 @@ import subprocess, sys
 from pyproj import Transformer
 from osgeo import gdal, osr
 import numpy as np
+import datetime
 import xml.etree.ElementTree as ET
 
 from geogrid_autorift.util import numpy_array_to_raster
@@ -10,6 +11,36 @@ from geogrid_autorift.util import numpy_array_to_raster
 
 def execute(cmd):
     subprocess.check_call(cmd, shell=True, stdout=sys.stdout, stderr=subprocess.STDOUT)
+
+
+def read_vals(fn, nodat=None, band=1):
+    ds = gdal.Open(fn)
+    disp = ds.GetRasterBand(band).ReadAsArray()
+    nodata = np.isnan(disp)
+    disp[nodata] = -32767
+    if nodat is not None:
+        nodata = (nodat|nodata)
+        disp[nodat] = -32767
+    ds = None
+    return disp, nodata
+
+
+def get_DT(date1, date2):
+    date1, date2 = str(date1), str(date2)
+    date1 = datetime.date(int(date1[:4]), int(date1[4:6]), int(date1[6:]))
+    date2 = datetime.date(int(date2[:4]), int(date2[4:6]), int(date2[6:]))
+    return (date2-date1).days
+
+
+def get_deltaT(dates):
+    
+    deltaT = []
+    for i in range(len(dates)-1):
+        deltaT.append(get_DT(dates[i], dates[i+1]))
+
+    return deltaT
+
+
 
 def getazimuthAngle(filename):
     from zipfile import ZipFile
@@ -66,7 +97,7 @@ def directional_slope(slopex, slopey, angle):
     return dslope
 
 
-def generate_dem_products(dem_dir, bbox):
+def generate_dem_products(dem_dir, bbox, config=None):
 
     bbox = np.array(bbox[1:-1].replace(' ','').split(',')).astype('float')
     zone = round((180+bbox[2])/6)
@@ -89,10 +120,14 @@ def generate_dem_products(dem_dir, bbox):
     geo = demvel.GetGeoTransform()
     demvel = None
 
-    # Get azimuth angle 
-    tree = ET.parse('reference.xml')
-    ref_dir = str(tree.getroot().findall(".//*[@name='safe']")[0].text[1:-1])
-    azimuth_angle = getazimuthAngle(ref_dir[1:-1])
+    # Get azimuth angle
+    try: 
+        tree = ET.parse('reference.xml')
+        ref_dir = str(tree.getroot().findall(".//*[@name='safe']")[0].text[1:-1])
+        azimuth_angle = getazimuthAngle(ref_dir[1:-1])
+    except:
+        azimuth_angle = config['azimuthAngle']
+
     dz_dy, dz_dx = horn_gradient(dem, geo)
     slopey = directional_slope(dz_dx, dz_dy, float(azimuth_angle))
     slopey = np.arctan(slopey)*(180.0)/np.pi
