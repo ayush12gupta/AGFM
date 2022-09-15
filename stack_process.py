@@ -37,17 +37,6 @@ def download_data(username, password, url, data_path, orbit_path):
 
 def offset_tracking(config, cwd, master, slave, netCDF_out):
 
-    # try:
-    #     execute('rm -rf geom_reference/ fine_offsets/ fine_interferogram/ coarse_* ESD/ PICKLE/')
-    #     execute('rm merged/z.rdr.full.* merged/lat.rdr.full.* merged/los.rdr.full.* merged/lon.rdr.full.* merged/pwr.bil* demLat_N31_N34_Lon_E076_E079.dem*')
-    # except:
-    #     print("Can't remove extra files")
-    # os.chdir("./offset_tracking")
-    # if not os.path.exists('window_location.tif'):
-    #     execute(f'python {cwd}/geogrid_autorift/testGeogrid_ISCE.py -m ../../reference -s ../../secondary -d ../dem_crop.tif -sx ../dem_x.tif -sy ../dem_x.tif')         #  -ssm {config["ssm"]}
-    # else:
-    #     print("./window_location.tif  ---> Already exists")
-    # print(os.getcwd(), f'../../merged/SLC/{slave}/{master}.slc.full', f'../../merged/SLC/{slave}/{slave}.slc.full')
     execute('cp ../testGeogrid.txt testGeogrid.txt')
     if os.path.exists(f'../../merged/SLC/{master}/{master}.slc.full')&os.path.exists(f'../../merged/SLC/{slave}/{slave}.slc.full'):
         cmd = f'time python {cwd}/geogrid_autorift/testautoRIFT_ISCE.py -m ../../merged/SLC/{master}/{master}.slc.full -s ../../merged/SLC/{slave}/{slave}.slc.full -g ../window_location.tif -chipmax {config["chip_max"]} -chipmin {config["chip_min"]} -mpflag {str(config["num_threads"])} -config {cwd}/configs/data_config.json -ncname {netCDF_out} -vx ../window_rdr_off2vel_x_vec.tif -vy ../window_rdr_off2vel_y_vec.tif -post' #-ssm window_stable_surface_mask.tif -nc S'
