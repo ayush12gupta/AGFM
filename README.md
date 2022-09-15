@@ -101,6 +101,32 @@ optional arguments:
   --config CONFIG       Data config file
 ```
 
+
+### **Running Stack Processing of Image Pair along with velocity correction**
+
+For performing time-series analysis over a region, a stack of SAR images are choosen in [TXT file](./data/stack_data.txt). All the SAR images are coregistered with respect to the first time-step image, and we perform the the offset tracking on the image pairs that we selected automatically in ***image_pair.csv***. Once offset tracking is completed, the velocity maps generated is modelled into an overdetermined linear system by minimising the least square using SVD method.
+
+The stack processing is performed using ***stack_process.py***. For starting the execution it should be called as shown below:
+
+    python stack_process.py --save_path SAVE_DIR --aux AUX_DIR --data_path DATA_PATH --config CONFIG_PATH --download_txt DOWNLOAD_TXT
+
+```
+usage: stack_process.py [-h] [--save_path SAVE_PATH] [--aux AUX]
+                        [--data_path DATA_PATH] [--download_txt DOWNLOAD_TXT]
+                        [--config CONFIG]
+
+optional arguments:
+  -h, --help            show this help message and exit
+  --save_path SAVE_PATH
+                        directory in which orbit file needs to be saved
+  --aux AUX             Sentinel-1 AUX file directory where aux file is saved
+  --data_path DATA_PATH
+                        directory in which orbit file needs to be saved
+  --download_txt DOWNLOAD_TXT
+                        Data CSV file
+  --config CONFIG       Data config file
+```
+
 ### **Post-processing**
 
 For post-processing, we have used velocity in LOS and azimuth direction for computing velocity in flow direction, and rate of change of thickness of glacier, and visualised them in order to get a idea of spatial variation of flow.
@@ -108,4 +134,3 @@ For post-processing, we have used velocity in LOS and azimuth direction for comp
 The postprocessing function can be changed from ***geogrid_autorift/util.py***
 
 We have performed all the steps in this [jupyter notebook](Post-Processing.ipynb).
-
