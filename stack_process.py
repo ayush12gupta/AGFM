@@ -89,12 +89,12 @@ def compute_svd(A, L, deltaT, dT, nodata, num, N):
     return La
 
 
-def velocity_correction_band(csv_fn, tif_dir, dates, band=1):
+def velocity_correction_band(csv_fn, tif_dir, dates, band=1, max_gap=3):
     data = pd.read_csv(csv_fn, header=0)
     num = len(data)
-
-    assert (num + 6)%3==0
-    N = ((num + 6)//3) - 1
+    sg = max_gap*(max_gap+1)/2
+    assert (num + sg)%max_gap==0
+    N = ((num + sg)//max_gap) - 1
     deltaT = get_deltaT(sorted(dates))
     A = np.zeros((num, N))
     nodata = None
