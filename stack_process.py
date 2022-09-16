@@ -24,6 +24,12 @@ parser.add_argument('--config', type=str, default="./configs/data_config.json", 
 args = parser.parse_args()
 
 
+def write_time(filename, exec_time):
+    with open(filename, 'w') as f:
+        for i, time in enumerate(exec_time):
+            f.write(f'{i}: {time/60}\n')
+
+
 def download_data(username, password, url, data_path, orbit_path):
     print(url.split('/')[-1].split('_'))
     dmy= url.split('/')[-1].split('_')[5]
@@ -205,6 +211,7 @@ def main():
     bbox = config_isce["ROI"][1:-1].replace(",","")
 
     urls = []
+    exec_time = []
     with open(args.download_txt, 'r') as f:
         for line in f:
             urls.append(line[:-1])
@@ -229,6 +236,7 @@ def main():
     df = pd.DataFrame({'Id':id, 'Master':master, 'Slave':slave, 'Status': [0]*len(id), 'ROI':[str(f"[{bbox.replace(' ', ', ')}]")]*len(id)})
     df.to_csv('image_pairs.csv')
 
+    start_time = time.time()
     if len(glob.glob('merged/SLC/*/*.slc.full'))==0:
         print(config_isce["ROI"][1:-1].replace(',',''))
         execute('cp -r /DATA/glacier-vel/geogrid_req/dem/demLat_N31_N34_Lon_E076_E079* ./')
@@ -249,6 +257,11 @@ def main():
             print(f"Time taken till {file}: ", time.time()-strt_time)
         print("Time taken for stack coregisteration: ", time.time()-strt_time)
 
+    prev = time.time()
+    exec_time.append(prev-start_time)
+    write_time('runtime.txt', exec_time)
+    start_time = prev
+
     # Preparing for geogrid
     dem = glob.glob('*.wgs84')
     generate_dem_products(dem[0], config_isce["ROI"], config)
@@ -266,6 +279,11 @@ def main():
 
     print("Starting Offset Tracking")
     offset_compute(pair_fn, config, cwd)
+
+    prev = time.time()
+    exec_time.append(prev-start_time)
+    write_time('runtime.txt', exec_time)
+    start_time = prev
     
     print('Starting Velocity Correction ...')
     os.chdir('../')
@@ -275,6 +293,11 @@ def main():
     os.chdir('./velocity_corrected')
     velocity_correction(pair_fn, '../offset_tracking/', dates)
     os.chdir('../')
+
+    prev = time.time()
+    exec_time.append(prev-start_time)
+    write_time('runtime.txt', exec_time)
+    start_time = prev
 
     execute('rm -rf ./geom_reference ./merged/geom_reference')
 
