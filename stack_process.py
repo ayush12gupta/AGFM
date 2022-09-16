@@ -58,7 +58,6 @@ def generate_data(elements, acquisitionDates, max_gap=3):
 
 def offset_tracking(config, cwd, master, slave, netCDF_out):
 
-    execute('rm -rf ../coreg_secondarys ../ESD ../misreg')
     execute('cp ../testGeogrid.txt testGeogrid.txt')
     if os.path.exists(f'../../merged/SLC/{master}/{master}.slc.full')&os.path.exists(f'../../merged/SLC/{slave}/{slave}.slc.full'):
         cmd = f'time python {cwd}/geogrid_autorift/testautoRIFT_ISCE.py -m ../../merged/SLC/{master}/{master}.slc.full -s ../../merged/SLC/{slave}/{slave}.slc.full -g ../window_location.tif -chipmax {config["chip_max"]} -chipmin {config["chip_min"]} -mpflag {str(config["num_threads"])} -config {cwd}/configs/data_config.json -ncname {netCDF_out} -vx ../window_rdr_off2vel_x_vec.tif -vy ../window_rdr_off2vel_y_vec.tif -post' #-ssm window_stable_surface_mask.tif -nc S'
@@ -71,6 +70,7 @@ def offset_tracking(config, cwd, master, slave, netCDF_out):
 
 def offset_compute(csv_file, config, cwd):
 
+    execute('rm -rf ../coreg_secondarys ../ESD ../misreg')
     data_pairs = pd.read_csv(csv_file, header=0)
     while (data_pairs['Status']==0).sum():
 
@@ -115,7 +115,7 @@ def velocity_correction_band(csv_fn, tif_dir, dates, band=1, max_gap=3):
     num = len(data)
     sg = max_gap*(max_gap+1)/2
     assert (num + sg)%max_gap==0
-    N = ((num + sg)//max_gap) - 1
+    N = int(((num + sg)//max_gap) - 1)
     deltaT = get_deltaT(sorted(dates))
     A = np.zeros((num, N))
     nodata = None
@@ -220,7 +220,7 @@ def main():
     os.makedirs(args.save_path, exist_ok=True)
     os.chdir(args.save_path)
 
-    acquisitionDates = [url.split('_')[2] for url in urls]
+    acquisitionDates = [url.split('_')[5][:8] for url in urls]
     N = len(acquisitionDates)
     elements = [i for i in range(N)]
     id, master, slave = generate_data(elements, acquisitionDates, 2)
@@ -279,15 +279,4 @@ def main():
 
 if __name__=='__main__':
     main()
-    # urls = []
-    # with open('./data/stack_data.txt', 'r') as f:
-    #     for line in f:
-    #         urls.append(line[:-1])
     
-    # acquisitionDates = [url.split('_')[2] for url in urls]
-    # N = len(acquisitionDates)
-    # elements = [i for i in range(N)]
-    # id, master, slave = generate_data(elements, acquisitionDates, 2)
-    # df = pd.DataFrame({'Id':id, 'Master':master, 'Slave':slave, 'Status': [0]*len(id), 'ROI':[str(f"[{inps.bbox.replace(' ', ', ')}]")]*len(id)})
-
-    # print(id, master, slave, len(id), N)
