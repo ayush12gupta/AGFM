@@ -867,7 +867,7 @@ def checkCurrentStatus(inps):
     acquisitionDates, stackReferenceDate, secondaryDates, safe_dict = get_dates(inps)
     N = len(acquisitionDates)
     elements = [i for i in range(N)]
-    id, master, slave = generate_data(elements, acquisitionDates, 3)
+    id, master, slave = generate_data(elements, acquisitionDates, 3)  ## HARDCODED max gap
     df = pd.DataFrame({'Id':id, 'Master':master, 'Slave':slave, 'Status': [0]*len(id), 'ROI':[str(f"[{inps.bbox.replace(' ', ', ')}]")]*len(id)})
     df.to_csv('image_pairs.csv')
     
