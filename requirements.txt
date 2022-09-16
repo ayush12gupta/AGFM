@@ -3,3 +3,4 @@ pandas
 fiona
 netCDF4
 rasterio
+sentinelsat

@@ -12,7 +12,7 @@ from geogrid_autorift.util import numpy_array_to_raster
 from utils import execute, generate_dem_products, get_deltaT, read_vals, get_DT
 
 
-VELOCITY_CORR_GAP = 3 ## HARDCODED the number of redundant observations
+VELOCITY_CORR_GAP = 2 ## HARDCODED the number of redundant observations
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--save_path', type=str, default="./output", help="directory in which orbit file needs to be saved")
@@ -222,10 +222,16 @@ def main():
     cwd = os.getcwd()
     
     for url in urls:
+        print(url.split('_')[5])
         download_data(config_isce['ASF_user'], config_isce['ASF_password'], url, args.data_path, config['Orbit_dir'])
 
-    # if os.path.exists(args.save_path):
-    #     shutil.rmtree(args.save_path)
+    # Removing the extra SAFE files
+    safe_files = [url.split('/')[-1] for url in urls]
+    for fn in os.listdir(args.data_path):
+        if fn not in safe_files:
+            os.remove(os.path.join(args.data_path, fn))
+    assert len(urls)==len(os.listdir(args.data_path))
+    
     os.makedirs(args.save_path, exist_ok=True)
     os.chdir(args.save_path)
 
@@ -241,7 +247,8 @@ def main():
         print(config_isce["ROI"][1:-1].replace(',',''))
         execute('cp -r /DATA/glacier-vel/geogrid_req/dem/demLat_N31_N34_Lon_E076_E079* ./')
         dem = glob.glob('*.wgs84')
-        execute(f'python3 {cwd}/stack/topsStack/stackSentinel.py -s {args.data_path} -d {dem[0]} -a {args.aux} -o {config["Orbit_dir"]} -b "{config_isce["ROI"][1:-1].replace(",","")}" -t "python3 {cwd}/stack/topsStack/" -W slc')
+        if not os.path.exists('./run_files'):
+            execute(f'python3 {cwd}/stack/topsStack/stackSentinel.py -s {args.data_path} -d {dem[0]} -a {args.aux} -o {config["Orbit_dir"]} -b "{config_isce["ROI"][1:-1].replace(",","")}" -t "python3 {cwd}/stack/topsStack/" -W slc')
 
         run_files = glob.glob('run_files/*')
         flag = 0

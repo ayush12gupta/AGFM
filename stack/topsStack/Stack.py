@@ -1782,12 +1782,13 @@ class sentinelSLC(object):
             orbit_files = glob.glob(os.path.join(orbitDir, '*/{0}*.EOF'.format(self.platform)))
 
         match = False
+        print(self.start_date_time, self.stop_date_time)
         for orbit in orbit_files:
            orbit = os.path.basename(orbit)
            fields = orbit.split('_')
            orbit_start_date_time = datetime.datetime.strptime(fields[6].replace('V',''), datefmt) + margin
            orbit_stop_date_time = datetime.datetime.strptime(fields[7].replace('.EOF',''), datefmt) - margin
-
+        #    print(orbit_start_date_time, orbit_stop_date_time, orbit)
            if self.start_date_time >= orbit_start_date_time and self.stop_date_time < orbit_stop_date_time:
                self.orbit = os.path.join(orbitDir,orbit)
                self.orbitType = 'precise'
@@ -1816,8 +1817,8 @@ class sentinelSLC(object):
            #if not os.path.exists(restitutedOrbitDir):
            else:
               os.makedirs(restitutedOrbitDir, exist_ok=True)
-
-              cmd = 'fetchOrbit.py -i ' + self.safe_file + ' -o ' + restitutedOrbitDir
+            #   scpt_path = os.path.realpath(os.path.dirname(__file__))
+              cmd = f'python3 {scpt_path}/fetchOrbit.py -i ' + self.safe_file + ' -o ' + restitutedOrbitDir
               print(cmd)
               os.system(cmd)
               orbitFile = glob.glob(os.path.join(restitutedOrbitDir,'*.EOF'))

@@ -284,6 +284,7 @@ def get_dates(inps):
     for safe in SAFE_files:
         safeObj=sentinelSLC(safe)
         safeObj.get_dates()
+        print(safe)
         if safeObj.start_date_time < stackStartDate or safeObj.start_date_time > stackStopDate:
             excludeList.append(safeObj.date)
             continue

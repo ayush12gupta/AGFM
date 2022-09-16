@@ -37,4 +37,5 @@ def get_orbit_fl(sentinel_type, date, month, yr, orbit_direct):
     datep = "%02d" % (int(datep)); date = "%02d" % (int(date))
     monthp = "%02d" % (int(monthp)); month = "%02d" % (int(month))
     yrp = "%02d" % (int(yrp)); yr = "%02d" % (int(yr))
+    print(f'sentinelsat --gnss -s {yrp}{monthp}{datep} -e {yr}{month}{date} --producttype AUX_POEORB --query="platformserialidentifier={sentinel_type[1:]}" -d --path {orbit_direct}')
     os.system(f'sentinelsat --gnss -s {yrp}{monthp}{datep} -e {yr}{month}{date} --producttype AUX_POEORB --query="platformserialidentifier={sentinel_type[1:]}" -d --path {orbit_direct}')
