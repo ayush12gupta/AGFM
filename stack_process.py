@@ -35,6 +35,27 @@ def download_data(username, password, url, data_path, orbit_path):
     return url.split('/')[-1]
 
 
+def add_elements(elements, acquisitionDates, gap):
+    N = len(acquisitionDates)
+    id = [f'stack_{str(elements[i])}_{str(elements[i+gap])}' for i in range(N-gap)]
+    master = [acquisitionDates[i] for i in range(N-gap)]
+    slave = [acquisitionDates[i+gap] for i in range(N-gap)]
+    return id, master, slave
+
+
+def generate_data(elements, acquisitionDates, max_gap=3):
+    id = []
+    master = []
+    slave = []
+    for gap in range(1, max_gap+1):
+        idn, mastern, slaven = add_elements(elements, acquisitionDates, gap=gap)
+        id.extend(idn)
+        master.extend(mastern)
+        slave.extend(slaven)
+
+    return id, master, slave
+
+
 def offset_tracking(config, cwd, master, slave, netCDF_out):
 
     execute('rm -rf ../coreg_secondarys ../ESD ../misreg')
@@ -179,6 +200,7 @@ def main():
         config = json.load(f)
     with open('./configs/isce_config.json', 'r') as f:
         config_isce = json.load(f)
+    bbox = config_isce["ROI"][1:-1].replace(",","")
 
     urls = []
     with open(args.download_txt, 'r') as f:
@@ -198,55 +220,74 @@ def main():
     os.makedirs(args.save_path, exist_ok=True)
     os.chdir(args.save_path)
 
-    if len(glob.glob('merged/SLC/*/*.slc.full'))==0:
-        print(config_isce["ROI"][1:-1].replace(',',''))
-        execute('cp -r /DATA/glacier-vel/geogrid_req/dem/demLat_N31_N34_Lon_E076_E079* ./')
-        dem = glob.glob('*.wgs84')
-        execute(f'python3 {cwd}/stack/topsStack/stackSentinel.py -s {args.data_path} -d {dem[0]} -a {args.aux} -o {config["Orbit_dir"]} -b "{config_isce["ROI"][1:-1].replace(",","")}" -t "python3 {cwd}/stack/topsStack/" -W slc')
+    acquisitionDates = [url.split('_')[2] for url in urls]
+    N = len(acquisitionDates)
+    elements = [i for i in range(N)]
+    id, master, slave = generate_data(elements, acquisitionDates, 2)
+    df = pd.DataFrame({'Id':id, 'Master':master, 'Slave':slave, 'Status': [0]*len(id), 'ROI':[str(f"[{bbox.replace(' ', ', ')}]")]*len(id)})
+    df.to_csv('image_test.csv')
 
-        run_files = glob.glob('run_files/*')
-        flag = 0
-        strt_time = time.time()
-        for file in sorted(run_files):
-            if flag:
-                print("Coregisteration complete")
-                break
-            if 'merge' in file:
-                flag = 1 
+    # if len(glob.glob('merged/SLC/*/*.slc.full'))==0:
+    #     print(config_isce["ROI"][1:-1].replace(',',''))
+    #     execute('cp -r /DATA/glacier-vel/geogrid_req/dem/demLat_N31_N34_Lon_E076_E079* ./')
+    #     dem = glob.glob('*.wgs84')
+    #     execute(f'python3 {cwd}/stack/topsStack/stackSentinel.py -s {args.data_path} -d {dem[0]} -a {args.aux} -o {config["Orbit_dir"]} -b "{config_isce["ROI"][1:-1].replace(",","")}" -t "python3 {cwd}/stack/topsStack/" -W slc')
 
-            execute(f'bash ./{file}')
-            print(f"Time taken till {file}: ", time.time()-strt_time)
-        print("Time taken for stack coregisteration: ", time.time()-strt_time)
+    #     run_files = glob.glob('run_files/*')
+    #     flag = 0
+    #     strt_time = time.time()
+    #     for file in sorted(run_files):
+    #         if flag:
+    #             print("Coregisteration complete")
+    #             break
+    #         if 'merge' in file:
+    #             flag = 1 
 
-    # Preparing for geogrid
-    dem = glob.glob('*.wgs84')
-    generate_dem_products(dem[0], config_isce["ROI"], config)
+    #         execute(f'bash ./{file}')
+    #         print(f"Time taken till {file}: ", time.time()-strt_time)
+    #     print("Time taken for stack coregisteration: ", time.time()-strt_time)
+
+    # # Preparing for geogrid
+    # dem = glob.glob('*.wgs84')
+    # generate_dem_products(dem[0], config_isce["ROI"], config)
     
-    dates = os.listdir('merged/SLC/')
-    os.makedirs('./offset_tracking', exist_ok=True)
-    os.chdir("./offset_tracking")
+    # dates = os.listdir('merged/SLC/')
+    # os.makedirs('./offset_tracking', exist_ok=True)
+    # os.chdir("./offset_tracking")
 
-    pair_fn = '../image_pairs.csv'
-    secondarys = sorted(os.listdir('../secondarys'))
-    if not os.path.exists('window_location.tif'):
-        execute(f'python {cwd}/geogrid_autorift/testGeogrid_ISCE.py -m ../reference -s ../secondarys/{secondarys[0]} -d ../dem_crop.tif -sx ../dem_x.tif -sy ../dem_x.tif')   #  -ssm {config["ssm"]}
-    else:
-        print("./window_location.tif  ---> Already exists")
+    # pair_fn = '../image_pairs.csv'
+    # secondarys = sorted(os.listdir('../secondarys'))
+    # if not os.path.exists('window_location.tif'):
+    #     execute(f'python {cwd}/geogrid_autorift/testGeogrid_ISCE.py -m ../reference -s ../secondarys/{secondarys[0]} -d ../dem_crop.tif -sx ../dem_x.tif -sy ../dem_x.tif')   #  -ssm {config["ssm"]}
+    # else:
+    #     print("./window_location.tif  ---> Already exists")
 
-    print("Starting Offset Tracking")
-    offset_compute(pair_fn, config, cwd)
+    # print("Starting Offset Tracking")
+    # offset_compute(pair_fn, config, cwd)
     
-    print('Starting Velocity Correction ...')
-    os.chdir('../')
-    if os.path.exists('./velocity_corrected'):
-        shutil.rmtree('./velocity_corrected')
-        os.makedirs('./velocity_corrected')
-    os.chdir('./velocity_corrected')
-    velocity_correction(pair_fn, '../offset_tracking/', dates)
-    os.chdir('../')
+    # print('Starting Velocity Correction ...')
+    # os.chdir('../')
+    # if os.path.exists('./velocity_corrected'):
+    #     shutil.rmtree('./velocity_corrected')
+    #     os.makedirs('./velocity_corrected')
+    # os.chdir('./velocity_corrected')
+    # velocity_correction(pair_fn, '../offset_tracking/', dates)
+    # os.chdir('../')
 
-    execute('rm -rf ./geom_reference ./merged/geom_reference')
+    # execute('rm -rf ./geom_reference ./merged/geom_reference')
 
 
 if __name__=='__main__':
-    main()
+    # main()
+    urls = []
+    with open('./data/stack_data.txt', 'r') as f:
+        for line in f:
+            urls.append(line[:-1])
+    
+    acquisitionDates = [url.split('_')[2] for url in urls]
+    N = len(acquisitionDates)
+    elements = [i for i in range(N)]
+    id, master, slave = generate_data(elements, acquisitionDates, 2)
+    df = pd.DataFrame({'Id':id, 'Master':master, 'Slave':slave, 'Status': [0]*len(id), 'ROI':[str(f"[{inps.bbox.replace(' ', ', ')}]")]*len(id)})
+
+    print(id, master, slave, len(id), N)
