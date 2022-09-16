@@ -12,6 +12,8 @@ from geogrid_autorift.util import numpy_array_to_raster
 from utils import execute, generate_dem_products, get_deltaT, read_vals, get_DT
 
 
+VELOCITY_CORR_GAP = 3 ## HARDCODED the number of redundant observations
+
 parser = argparse.ArgumentParser()
 parser.add_argument('--save_path', type=str, default="./output", help="directory in which orbit file needs to be saved")
 parser.add_argument('--aux', type=str, default="/DATA/glacier-vel/data/aux/", help="Sentinel-1 AUX file directory where aux file is saved")
@@ -223,9 +225,9 @@ def main():
     acquisitionDates = [url.split('_')[5][:8] for url in urls]
     N = len(acquisitionDates)
     elements = [i for i in range(N)]
-    id, master, slave = generate_data(elements, acquisitionDates, 2)
+    id, master, slave = generate_data(elements, acquisitionDates, VELOCITY_CORR_GAP)
     df = pd.DataFrame({'Id':id, 'Master':master, 'Slave':slave, 'Status': [0]*len(id), 'ROI':[str(f"[{bbox.replace(' ', ', ')}]")]*len(id)})
-    df.to_csv('image_test.csv')
+    df.to_csv('image_pairs.csv')
 
     if len(glob.glob('merged/SLC/*/*.slc.full'))==0:
         print(config_isce["ROI"][1:-1].replace(',',''))
@@ -279,4 +281,3 @@ def main():
 
 if __name__=='__main__':
     main()
-    
