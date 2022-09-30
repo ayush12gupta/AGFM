@@ -1,7 +1,7 @@
 {
-    "num_threads": 32,
+    "num_threads": 64,
     "chip_min": 256,
-    "chip_max": 512,
+    "chip_max": 1024,
     "SAR_dir": "/DATA/glacier-vel/data/",
     "Orbit_dir": "/DATA/glacier-vel/data/orbit/",
     "shapefile_dir": "/DATA/glacier-vel/geogrid_req/chandra_bhaga/",

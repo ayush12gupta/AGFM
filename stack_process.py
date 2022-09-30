@@ -80,14 +80,21 @@ def offset_compute(csv_file, config, cwd):
 
     execute('rm -rf ../coreg_secondarys ../ESD ../misreg')
     data_pairs = pd.read_csv(csv_file, header=0)
+    print("Starting offset tracking estimation using: ", csv_file)
     while (data_pairs['Status']==0).sum():
 
         row = data_pairs[data_pairs['Status']==0].iloc[0]
         index = data_pairs[data_pairs['Id']==row['Id']].index[0]
         id  = row['Id']
+        print(id)
         master, slave = row['Master'], row['Slave']
+        # Skip offset tracking for the file which have already been computed
+        if os.path.exists(f'./{id}/velocity.tif'):
+            continue
         os.makedirs(f'./{id}', exist_ok=True)
         os.chdir(f'./{id}')
+        
+        # If coregistered image exists
         if os.path.exists(f'../../merged/SLC/{slave}/{slave}.slc.full'):
             offset_tracking(config, cwd, str(master), str(slave), id)
 
@@ -119,6 +126,9 @@ def compute_svd(A, L, deltaT, dT, nodata, num, N):
 
 
 def velocity_correction_band(csv_fn, tif_dir, dates, band=1, max_gap=3):
+    '''
+    Apply velocity corrections on a single band
+    '''
     data = pd.read_csv(csv_fn, header=0)
     num = len(data)
     sg = max_gap*(max_gap+1)/2
@@ -164,7 +174,7 @@ def velocity_correction_band(csv_fn, tif_dir, dates, band=1, max_gap=3):
         ds = None
 
 
-def velocity_correction(csv_fn, tif_dir, dates):
+def velocity_correction(csv_fn, tif_dir, dates, max_gap=3):
     '''
     Performs SVD for least square estimation of velocity correction of 
     offset tracking results
@@ -173,8 +183,8 @@ def velocity_correction(csv_fn, tif_dir, dates):
     tif_dir: Path to offset_tracking tif file results
     dates: list of acquisition interval
     '''
-    velocity_correction_band(csv_fn, tif_dir, dates, band=1)
-    velocity_correction_band(csv_fn, tif_dir, dates, band=2)
+    velocity_correction_band(csv_fn, tif_dir, dates, band=1, max_gap=max_gap)
+    velocity_correction_band(csv_fn, tif_dir, dates, band=2, max_gap=max_gap)
     # Merging both the bands and additionally generating resulting velocity band
     data = pd.read_csv(csv_fn, header=0)
 
@@ -235,14 +245,16 @@ def main():
     os.makedirs(args.save_path, exist_ok=True)
     os.chdir(args.save_path)
 
-    acquisitionDates = [url.split('_')[5][:8] for url in urls]
-    N = len(acquisitionDates)
-    elements = [i for i in range(N)]
-    id, master, slave = generate_data(elements, acquisitionDates, VELOCITY_CORR_GAP)
-    df = pd.DataFrame({'Id':id, 'Master':master, 'Slave':slave, 'Status': [0]*len(id), 'ROI':[str(f"[{bbox.replace(' ', ', ')}]")]*len(id)})
-    df.to_csv('image_pairs.csv')
+    if not os.path.exists('image_pairs.csv'):
+        acquisitionDates = [url.split('_')[5][:8] for url in urls]
+        N = len(acquisitionDates)
+        elements = [i for i in range(N)]
+        id, master, slave = generate_data(elements, acquisitionDates, VELOCITY_CORR_GAP)
+        df = pd.DataFrame({'Id':id, 'Master':master, 'Slave':slave, 'Status': [0]*len(id), 'ROI':[str(f"[{bbox.replace(' ', ', ')}]")]*len(id)})
+        df.to_csv('image_pairs.csv')
 
     start_time = time.time()
+    # If coregistration completed then move on to next step
     if len(glob.glob('merged/SLC/*/*.slc.full'))==0:
         print(config_isce["ROI"][1:-1].replace(',',''))
         execute('cp -r /DATA/glacier-vel/geogrid_req/dem/demLat_N31_N34_Lon_E076_E079* ./')
@@ -296,9 +308,9 @@ def main():
     os.chdir('../')
     if os.path.exists('./velocity_corrected'):
         shutil.rmtree('./velocity_corrected')
-        os.makedirs('./velocity_corrected')
+    os.makedirs('./velocity_corrected')
     os.chdir('./velocity_corrected')
-    velocity_correction(pair_fn, '../offset_tracking/', dates)
+    velocity_correction(pair_fn, '../offset_tracking/', dates, VELOCITY_CORR_GAP)
     os.chdir('../')
 
     prev = time.time()
