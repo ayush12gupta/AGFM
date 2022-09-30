@@ -1,9 +1,17 @@
 import os, glob
+import argparse
 import numpy as np
 from osgeo import gdal
 
 from utils import read_raster
 from ..utils import numpy_array_to_raster
+
+
+parser = argparse.ArgumentParser()
+parser.add_argument('--out_filename', type=str, default="optical.tif", help="Path to the output optical merged image")
+parser.add_argument('--landsat_dir', type=str, required=True, help="directory in which Landsat file are saved")
+
+args = parser.parse_args()
 
 
 def generate_indices(landsat_dir, out_filename):
@@ -34,4 +42,4 @@ def generate_indices(landsat_dir, out_filename):
 
 
 if __name__=='__main__':
-    generate_indices(landsat_dir, out_filename)
+    generate_indices(args.landsat_dir, args.out_filename)
