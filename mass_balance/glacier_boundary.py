@@ -8,8 +8,8 @@ from affine import Affine
 from shapely.geometry import shape
 
 from utils import *
-from ..utils import numpy_array_to_raster
-
+# from geo.utils import numpy_array_to_raster
+# from geogrid_autorift.util import numpy_array_to_raster
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--out_tif', type=str, default="./optical.tif", help="Path to the output optical merged image")

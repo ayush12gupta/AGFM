@@ -3,8 +3,8 @@ import argparse
 import numpy as np
 from osgeo import gdal
 
-from utils import read_raster
-from ..utils import numpy_array_to_raster
+from utils import read_raster, numpy_array_to_raster
+# from geogrid_autorift.util import numpy_array_to_raster
 
 
 parser = argparse.ArgumentParser()
@@ -16,13 +16,14 @@ args = parser.parse_args()
 
 def generate_indices(landsat_dir, out_filename):
     
+    print(landsat_dir+'/*_B3.TIF')
     green = read_raster(glob.glob(landsat_dir+'/*_B3.TIF')[0])
     # red = read_raster(glob.glob(landsat_dir+'/*_B4.TIF')[0])
     nir = read_raster(glob.glob(landsat_dir+'/*_B5.TIF')[0])
     swir = read_raster(glob.glob(landsat_dir+'/*_B6.TIF')[0])
     nodata = (green==-32767)
 
-    NDSI = (green-swir)/(green-swir)
+    NDSI = (green-swir)/(green+swir)
     NDSI[nodata] = -32767
 
     NSWIR = nir/swir
@@ -42,4 +43,5 @@ def generate_indices(landsat_dir, out_filename):
 
 
 if __name__=='__main__':
+    print(args.landsat_dir, args.out_filename)
     generate_indices(args.landsat_dir, args.out_filename)

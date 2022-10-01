@@ -1,7 +1,54 @@
 import cv2
 import numpy as np
-from osgeo import gdal
+from osgeo import gdal, osr
 from pyproj import Transformer
+
+
+# config ### HARD CODED
+GDAL_DATA_TYPE = gdal.GDT_Float64 
+GEOTIFF_DRIVER_NAME = "GTiff"
+NO_DATA = -32767
+SPATIAL_REFERENCE_SYSTEM_WKID = 32767
+
+def create_raster(output_path,
+                  columns,
+                  rows,
+                  nband = 1,
+                  gdal_data_type = GDAL_DATA_TYPE,
+                  driver = GEOTIFF_DRIVER_NAME):
+
+    driver = gdal.GetDriverByName(driver)
+
+    output_raster = driver.Create(output_path, int(columns), int(rows), nband, eType = gdal_data_type)    
+    return output_raster
+
+
+def numpy_array_to_raster(output_path,
+                          numpy_array,
+                          proj,
+                          trans,
+                          nband = 1,
+                          no_data = NO_DATA,
+                          gdal_data_type = GDAL_DATA_TYPE,
+                          spatial_reference_system_wkid = SPATIAL_REFERENCE_SYSTEM_WKID,
+                          driver = GEOTIFF_DRIVER_NAME):
+
+    shp = numpy_array.shape
+    rows, columns = shp[1], shp[2]
+    output_raster = create_raster(output_path, int(columns), int(rows), nband, gdal_data_type) 
+    geotransform = trans
+
+    spatial_reference = osr.SpatialReference()
+    spatial_reference.ImportFromWkt(proj)
+    output_raster.SetProjection(spatial_reference.ExportToWkt())
+    output_raster.SetGeoTransform(geotransform)
+    for i in range(1, nband+1):
+        output_band = output_raster.GetRasterBand(i)
+        output_band.SetNoDataValue(no_data)
+        output_band.WriteArray(numpy_array[i-1])          
+        output_band.FlushCache()
+    
+    return  output_raster
 
 
 def get_espg(lat, zone):
@@ -14,7 +61,7 @@ def get_espg(lat, zone):
 
 def read_raster(fn, band=1):
     ds = gdal.Open(fn)
-    disp = ds.GetRasterBand(band).ReadAsArray()
+    disp = ds.GetRasterBand(band).ReadAsArray().astype('float32')
     nodat = ds.GetRasterBand(1).GetNoDataValue()
     nandata = np.isnan(disp)
     disp[disp==nodat] = -32767
