@@ -121,7 +121,7 @@ def horn_gradient(z, geo):
 
 def clean_mask(mask, area_thresh=250):
     mask2 = mask.copy()
-    mask2 -= 255
+    mask_clean = np.zeros_like(mask)
     _, contour, _ = cv2.findContours(mask2, cv2.RETR_TREE, cv2.CHAIN_APPROX_NONE)
 
     # get the biggest contour # returns _, contours, _ if using OpenCV 3
@@ -134,6 +134,7 @@ def clean_mask(mask, area_thresh=250):
             contours.append(con)
 
     # fill in the contour
-    cv2.drawContours(mask2, contours, -1, 255, -1)
-    return mask2
+    # print(len())
+    cv2.drawContours(mask_clean, contours, -1, 255, -1)
+    return mask_clean
     

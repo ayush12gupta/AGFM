@@ -5,6 +5,7 @@ import numpy as np
 import geopandas as gpd
 from osgeo import gdal
 from affine import Affine
+from rasterio.features import shapes
 from shapely.geometry import shape
 
 from utils import *
@@ -16,7 +17,7 @@ parser.add_argument('--out_tif', type=str, default="./optical.tif", help="Path t
 parser.add_argument('--roi', type=str, default="[32.06, 32.77, 76.86, 77.82]", help="Region of interest")
 parser.add_argument('--dem_path', type=str, required=True, help="directory in which DEM file needs to be saved")
 parser.add_argument('--out_shapefile', type=str, default="./", help="Path to the output shapefile")
-parser.add_argument('--config', type=str, default="./configs/data_config.json", help="Data config file")
+parser.add_argument('--landsat_files', nargs='+', help='List of landsat index files needed for merging', required=True)
 
 args = parser.parse_args()
 
@@ -51,9 +52,11 @@ def preprocess_optical(opt_name, img_paths, roi, dem_path):
     geo = ds.GetGeoTransform()
     ds = None
     bbox = get_bbox(roi)
-    dem_out = dem_path[:-4]+'_crop.tif'
-    os.system(f'gdalwarp -te {bbox[0]} {bbox[1]} {bbox[2]} {bbox[3]} {dem_path} {dem_out}')
-    
+    dem_out = os.path.join(*dem_path.split('/')[:-1])+'/dem_crop.tif'
+    zone = round((180+roi[2])/6)
+    if not os.path.exists(dem_out):
+        os.system(f'gdalwarp -s_srs "EPSG:4326" -t_srs "+proj=utm +zone={zone} +datum=WGS84 +units=m +no_defs" -te {bbox[0]} {bbox[1]} {bbox[2]} {bbox[3]} -of GTIFF {dem_path} {dem_out}')
+
     ds = gdal.Open(dem_out)
     dem = ds.GetRasterBand(1).ReadAsArray()
     geo = ds.GetGeoTransform()
@@ -135,15 +138,18 @@ def generate_shapefile(optical_data, dem_slope_path, out_shp, crs):
     ret, mask = cv2.threshold((gaus_img).astype('uint8'), 140, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
 
     # Removing small contours
-    mask = clean_mask(mask, area_thresh=250)
+    mask_clean = clean_mask(mask, area_thresh=250)
+    cv2.imwrite('test.jpg', np.hstack([mask, mask_clean]))
     glaciers = []
     area = []
     affine = Affine(geo[1], geo[2], geo[0], geo[4], geo[5], geo[3])
-    for shp, val in rasterio.features.shapes(mask.astype('float32'), transform=affine):
-        if val==1:
+    
+    for shp, val in shapes(mask_clean.astype('float32'), transform=affine):
+        if val>0:
             glaciers.append(shape(shp))
             area.append(shape(shp).area)
 
+    # print(glaciers)
     gdf3 = gpd.GeoDataFrame(geometry=glaciers, crs=crs)  # Note GeoDataFrame geometry requires a list
     gdf3.to_file(filename=out_shp, driver='ESRI Shapefile')
 
@@ -154,6 +160,7 @@ if __name__=='__main__':
     epsg = get_espg(roi[0], zone)
     crs = f'EPSG:{epsg}'
     dem_slope_path = args.dem_path[:-4]+'_slope.tif'
-    img_paths = ['../2022_1/landsat2022_1.tif','../2022_2/landsat2022_2.tif']
-    preprocess_optical(args.out_tif, img_paths, roi, args.dem_path)
+    print(args.landsat_files, crs)
+    # img_paths = ['../2022_1/landsat2022_1.tif','../2022_2/landsat2022_2.tif']
+    preprocess_optical(args.out_tif, args.landsat_files, roi, args.dem_path)
     generate_shapefile(args.out_tif, dem_slope_path, args.out_shapefile, crs)
