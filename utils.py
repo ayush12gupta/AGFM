@@ -95,6 +95,14 @@ def directional_slope(slopex, slopey, angle):
     return dslope
 
 
+def get_espg(lat, zone):
+    epsg_code = 32600
+    epsg_code += int(zone)
+    if (lat < 0): # South
+        epsg_code += 100    
+    return epsg_code
+
+
 def generate_dem_products(dem_dir, bbox, config=None):
 
     bbox = np.array(bbox[1:-1].replace(' ','').split(',')).astype('float')
@@ -102,7 +110,9 @@ def generate_dem_products(dem_dir, bbox, config=None):
     if not os.path.exists('dem.tif'):
         execute(f'gdalwarp -s_srs "EPSG:4326" -t_srs "+proj=utm +zone={zone} +datum=WGS84 +units=m +no_defs" -of GTIFF {dem_dir} dem.tif')
 
-    transformer = Transformer.from_crs("epsg:4326","epsg:32643")
+    # Assuming the entire region lies in the same UTM zone
+    epsg = get_espg(bbox[0], zone)
+    transformer = Transformer.from_crs("epsg:4326",f"epsg:{epsg}")
     xl,yt = bbox[0], bbox[2]
     xr, yb = bbox[1], bbox[3]
     x2,y2 = transformer.transform(xl,yt)

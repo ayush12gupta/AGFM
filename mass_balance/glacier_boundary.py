@@ -96,7 +96,7 @@ def preprocess_optical(opt_name, img_paths, roi, dem_path):
     ds = None
     
 
-def generate_shapefile(optical_data, dem_slope_path, out_shp, crs):  
+def generate_shapefile(optical_data, dem_slope_path, out_shp, ref_shp, crs):  
     dem_slope = read_raster(dem_slope_path)
     dem = dem_slope.astype('float32')/(dem_slope.max())
     
@@ -139,17 +139,29 @@ def generate_shapefile(optical_data, dem_slope_path, out_shp, crs):
 
     # Removing small contours
     mask_clean = clean_mask(mask, area_thresh=250)
-    cv2.imwrite('test.jpg', np.hstack([mask, mask_clean]))
+    # cv2.imwrite('test.jpg', np.hstack([mask, mask_clean]))
     glaciers = []
     area = []
     affine = Affine(geo[1], geo[2], geo[0], geo[4], geo[5], geo[3])
     
+    # for shp, val in shapes(mask_clean.astype('float32'), transform=affine):
+    #     if val>0:
+    #         glaciers.append(shape(shp))
+    #         area.append(shape(shp).area)
+
+    gips = gpd.read_file(ref_shp).to_crs(crs)
     for shp, val in shapes(mask_clean.astype('float32'), transform=affine):
         if val>0:
-            glaciers.append(shape(shp))
-            area.append(shape(shp).area)
+            for j, row in gips.iterrows():
+                poly = shape(shp)
+                gip = row['geometry']
+                ar = poly.intersection(gip).area
+                if ar!=0:
+                    cnt+=1
+                    glaciers.append(shape(shp))
+                    area.append(shape(shp).area)
+                    break
 
-    # print(glaciers)
     gdf3 = gpd.GeoDataFrame(geometry=glaciers, crs=crs)  # Note GeoDataFrame geometry requires a list
     gdf3.to_file(filename=out_shp, driver='ESRI Shapefile')
 
