@@ -142,6 +142,7 @@ def generate_shapefile(optical_data, dem_slope_path, out_shp, ref_shp, crs):
     # cv2.imwrite('test.jpg', np.hstack([mask, mask_clean]))
     glaciers = []
     area = []
+    glims_id = []
     affine = Affine(geo[1], geo[2], geo[0], geo[4], geo[5], geo[3])
     
     # for shp, val in shapes(mask_clean.astype('float32'), transform=affine):
@@ -150,19 +151,23 @@ def generate_shapefile(optical_data, dem_slope_path, out_shp, ref_shp, crs):
     #         area.append(shape(shp).area)
 
     gips = gpd.read_file(ref_shp).to_crs(crs)
-    for shp, val in shapes(mask_clean.astype('float32'), transform=affine):
+    for shp, val in shapes(mask_clean.astype('float32'), transform=af):
         if val>0:
+            gid = None
+            max_ar = 0
             for j, row in gips.iterrows():
                 poly = shape(shp)
                 gip = row['geometry']
                 ar = poly.intersection(gip).area
-                if ar!=0:
-                    cnt+=1
-                    glaciers.append(shape(shp))
-                    area.append(shape(shp).area)
-                    break
+                if ar>max_ar:
+                    gid = row['GLIMS_ID']
+                    max_ar = ar
+            glaciers.append(shape(shp))
+            area.append(shape(shp).area/1e6)
+            glims_id.append(gid)
 
-    gdf3 = gpd.GeoDataFrame(geometry=glaciers, crs=crs)  # Note GeoDataFrame geometry requires a list
+    d = {"GLIMS_ID":glims_id, "Area":area, "geometry": glaciers}
+    gdf3 = gpd.GeoDataFrame(d, crs=crs)  # Note GeoDataFrame geometry requires a list
     gdf3.to_file(filename=out_shp, driver='ESRI Shapefile')
 
 
