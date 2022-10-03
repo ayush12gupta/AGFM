@@ -17,6 +17,7 @@ parser.add_argument('--out_tif', type=str, default="./optical.tif", help="Path t
 parser.add_argument('--roi', type=str, default="[32.06, 32.77, 76.86, 77.82]", help="Region of interest")
 parser.add_argument('--dem_path', type=str, required=True, help="directory in which DEM file needs to be saved")
 parser.add_argument('--out_shapefile', type=str, default="./", help="Path to the output shapefile")
+parser.add_argument('--ref_shapefile', type=str, default=None, help="Path to the reference shapefile")
 parser.add_argument('--landsat_files', nargs='+', help='List of landsat index files needed for merging', required=True)
 
 args = parser.parse_args()
@@ -153,18 +154,22 @@ def generate_shapefile(optical_data, dem_slope_path, out_shp, ref_shp, crs):
     gips = gpd.read_file(ref_shp).to_crs(crs)
     for shp, val in shapes(mask_clean.astype('float32'), transform=af):
         if val>0:
-            gid = None
-            max_ar = 0
-            for j, row in gips.iterrows():
-                poly = shape(shp)
-                gip = row['geometry']
-                ar = poly.intersection(gip).area
-                if ar>max_ar:
-                    gid = row['GLIMS_ID']
-                    max_ar = ar
-            glaciers.append(shape(shp))
-            area.append(shape(shp).area/1e6)
-            glims_id.append(gid)
+            if ref_shp is not None:
+                gid = None
+                max_ar = 0
+                for j, row in gips.iterrows():
+                    poly = shape(shp)
+                    gip = row['geometry']
+                    ar = poly.intersection(gip).area
+                    if ar>max_ar:
+                        gid = row['GLIMS_ID']
+                        max_ar = ar
+                glaciers.append(shape(shp))
+                area.append(shape(shp).area/1e6)
+                glims_id.append(gid)
+            else:
+                glaciers.append(shape(shp))
+                area.append(shape(shp).area)
 
     d = {"GLIMS_ID":glims_id, "Area":area, "geometry": glaciers}
     gdf3 = gpd.GeoDataFrame(d, crs=crs)  # Note GeoDataFrame geometry requires a list
