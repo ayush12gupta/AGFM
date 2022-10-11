@@ -1,4 +1,5 @@
 import cv2
+import os
 import numpy as np
 from osgeo import gdal, osr
 from pyproj import Transformer
@@ -68,6 +69,12 @@ def read_raster(fn, band=1):
     disp[nandata] = -32767
     ds = None
     return disp
+
+
+def download_DEM(roi, out_path):
+    bound = (roi[2]-0.5, roi[0]-0.5, roi[3]+0.5, roi[1]+0.5)
+    cmd = f'eio --product SRTM1 clip -o {out_path} --bounds {bound[0]} {bound[1]} {bound[2]} {bound[3]}'
+    os.system(cmd)
 
 
 def get_bbox(bbox):

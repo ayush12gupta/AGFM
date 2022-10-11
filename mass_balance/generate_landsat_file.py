@@ -24,7 +24,9 @@ def generate_indices(landsat_dir, out_filename):
     nodata = (green==-32767)
 
     NDSI = (green-swir)/(green+swir)
+    NDWI = (green-nir)/(green+nir)
     NDSI[nodata] = -32767
+    NDWI[nodata] = -32767
 
     NSWIR = nir/swir
     NSWIR[nodata] = -32767
@@ -37,7 +39,7 @@ def generate_indices(landsat_dir, out_filename):
     geo = ds.GetGeoTransform()
     ds = None
 
-    ds = numpy_array_to_raster(f'{landsat_dir}/{out_filename}', np.array([NSWIR, NDSI]), projs, geo, nband=2)
+    ds = numpy_array_to_raster(f'{landsat_dir}/{out_filename}', np.array([NSWIR, NDSI, NDWI]), projs, geo, nband=3)
     ds.FlushCache()
     ds = None
 

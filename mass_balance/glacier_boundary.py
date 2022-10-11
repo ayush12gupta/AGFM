@@ -15,7 +15,7 @@ from utils import *
 parser = argparse.ArgumentParser()
 parser.add_argument('--out_tif', type=str, default="./optical.tif", help="Path to the output optical merged image")
 parser.add_argument('--roi', type=str, default="[32.06, 32.77, 76.86, 77.82]", help="Region of interest")
-parser.add_argument('--dem_path', type=str, required=True, help="directory in which DEM file needs to be saved")
+parser.add_argument('--dem_path', type=str, default=None, help="directory in which DEM file needs to be saved")
 parser.add_argument('--out_shapefile', type=str, default="./", help="Path to the output shapefile")
 parser.add_argument('--ref_shapefile', type=str, default=None, help="Path to the reference shapefile")
 parser.add_argument('--landsat_files', nargs='+', help='List of landsat index files needed for merging', required=True)
@@ -55,6 +55,8 @@ def preprocess_optical(opt_name, img_paths, roi, dem_path):
     bbox = get_bbox(roi)
     dem_out = os.path.join(*dem_path.split('/')[:-1])+'/dem_crop.tif'
     zone = round((180+roi[2])/6)
+
+    # Input DEM mush be in WGS Projection
     if not os.path.exists(dem_out):
         os.system(f'gdalwarp -s_srs "EPSG:4326" -t_srs "+proj=utm +zone={zone} +datum=WGS84 +units=m +no_defs" -te {bbox[0]} {bbox[1]} {bbox[2]} {bbox[3]} -of GTIFF {dem_path} {dem_out}')
 
@@ -75,6 +77,9 @@ def preprocess_optical(opt_name, img_paths, roi, dem_path):
 #         os.system
         if not os.path.exists(out_img):
             os.system(f'gdalwarp -tr {geo[1]} {geo[5]} -te {bbox[0]} {bbox[1]} {bbox[2]} {bbox[3]} {img_path} {out_img}')
+        else:
+            os.remove(out_img)
+            os.system(f'gdalwarp -tr {geo[1]} {geo[5]} -te {bbox[0]} {bbox[1]} {bbox[2]} {bbox[3]} {img_path} {out_img}')
         if os.path.exists(out_img):
             crop_img.append(out_img)
     
@@ -83,7 +88,7 @@ def preprocess_optical(opt_name, img_paths, roi, dem_path):
         return 
         
     combined = []
-    for i in range(2):
+    for i in range(3):
         comb = stitch_images(crop_img, dem_slope, band=(i+1))
         combined.append(comb)
     
@@ -92,7 +97,7 @@ def preprocess_optical(opt_name, img_paths, roi, dem_path):
     geo = ds.GetGeoTransform()
     ds = None
     
-    ds = numpy_array_to_raster(opt_name, np.array(combined), projs, geo, nband=2)
+    ds = numpy_array_to_raster(opt_name, np.array(combined), projs, geo, nband=3)
     ds.FlushCache()
     ds = None
     
@@ -105,19 +110,24 @@ def generate_shapefile(optical_data, dem_slope_path, out_shp, ref_shp, crs):
     geo = ds.GetGeoTransform()
     nswir = ds.GetRasterBand(1).ReadAsArray()
     ndsi = ds.GetRasterBand(2).ReadAsArray()
+    ndwi = ds.GetRasterBand(3).ReadAsArray()
     valid = (nswir>0)
-    valid2 = (ndsi>0)
+    valid2 = (ndsi>0)&(ndsi<=1)
+    valid3 = (ndwi>0)&(ndwi<=1)
     nodata = (nswir<0)
-    nodata2 = (ndsi<0)
+    nodata2 = (ndsi<0)|(ndsi>1)
+    nodata3 = (ndwi<0)|(ndwi>1)
     nswir[nodata] = np.median(nswir[valid])
     ndsi[nodata2] = 0.1
+    ndwi[nodata3] = np.median(ndwi[valid3])
     ds = None
 
     # Segmentation
     img = nswir.astype('float32')/(nswir[valid].max())
     img2 = ndsi.astype('float32')/(ndsi[valid2].max())
-    ret, thresh1 = cv2.threshold((img*255).astype('uint8'), 120, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
-    ret2, thresh2 = cv2.threshold((img2*255).astype('uint8'), 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+    img3 = ndwi.astype('float32')/(ndwi[valid3].max())
+    # ret, thresh1 = cv2.threshold((img*255).astype('uint8'), 120, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+    # ret2, thresh2 = cv2.threshold((img2*255).astype('uint8'), 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
 
     im = ((img**0.1)*img2)
     ret, thresh3 = cv2.threshold((im*255).astype('uint8'), 50, 255, cv2.THRESH_BINARY)  # Hard coded
@@ -125,7 +135,13 @@ def generate_shapefile(optical_data, dem_slope_path, out_shp, ref_shp, crs):
     th3 = cv2.GaussianBlur(th3,(7,7),2)/255
 
     # Get thresh3 using DEM
-    mas = ((th3*im)**0.5*thresh3)
+    # mas = ((th3*im)**0.5*thresh3)
+
+    ret, _ = cv2.threshold((img3*255).astype('uint8'), 100, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+    im3 = (img3*255).astype('uint8')
+    glacial_lake = clean_mask((im3>ret).astype('uint8')*255, 100)
+    # mas[glacial_lake!=0] = 0
+    # cl = clean_mask(mas.astype('uint8'))
         
     # Try 1
     # i2 = mas*(1-dem)**2
@@ -134,13 +150,15 @@ def generate_shapefile(optical_data, dem_slope_path, out_shp, ref_shp, crs):
 
     # Try 2
     ii = ((th3*im)**0.5)*(1-dem)   #mas*((1-dem1)**1)
-    ret, i3 = cv2.threshold((ii*255).astype('uint8'), 120, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
-    gaus_img = cv2.GaussianBlur(i3.astype('uint8'),(7,7),7)
-    ret, mask = cv2.threshold((gaus_img).astype('uint8'), 140, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+    ret, mask = cv2.threshold((ii*255).astype('uint8'), 120, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+    # ret, i3 = cv2.threshold((ii*255).astype('uint8'), 120, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+    # gaus_img = cv2.GaussianBlur(i3.astype('uint8'),(7,7),7)
+    # gaus_img = cv2.GaussianBlur(i3.astype('uint8'),(5,5),3)
+    # ret, mask = cv2.threshold((gaus_img).astype('uint8'), 140, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+    mask[glacial_lake!=0] = 0
 
     # Removing small contours
-    mask_clean = clean_mask(mask, area_thresh=250)
-    # cv2.imwrite('test.jpg', np.hstack([mask, mask_clean]))
+    mask_clean = clean_mask(mask, area_thresh=100)
     glaciers = []
     area = []
     glims_id = []
@@ -151,8 +169,11 @@ def generate_shapefile(optical_data, dem_slope_path, out_shp, ref_shp, crs):
     #         glaciers.append(shape(shp))
     #         area.append(shape(shp).area)
 
-    gips = gpd.read_file(ref_shp).to_crs(crs)
-    for shp, val in shapes(mask_clean.astype('float32'), transform=af):
+    if ref_shp is None:
+        gips = None
+    else:
+        gips = gpd.read_file(ref_shp).to_crs(crs)
+    for shp, val in shapes(mask_clean.astype('float32'), transform=affine):
         if val>0:
             if ref_shp is not None:
                 gid = None
@@ -171,7 +192,10 @@ def generate_shapefile(optical_data, dem_slope_path, out_shp, ref_shp, crs):
                 glaciers.append(shape(shp))
                 area.append(shape(shp).area)
 
-    d = {"GLIMS_ID":glims_id, "Area":area, "geometry": glaciers}
+    if ref_shp is not None:
+        d = {"GLIMS_ID":glims_id, "Area":area, "geometry": glaciers}
+    else:
+        d = {"Area":area, "geometry": glaciers}
     gdf3 = gpd.GeoDataFrame(d, crs=crs)  # Note GeoDataFrame geometry requires a list
     gdf3.to_file(filename=out_shp, driver='ESRI Shapefile')
 
@@ -181,8 +205,19 @@ if __name__=='__main__':
     zone = round((180+roi[2])/6)
     epsg = get_espg(roi[0], zone)
     crs = f'EPSG:{epsg}'
-    dem_slope_path = args.dem_path[:-4]+'_slope.tif'
+    # Checking for DEM file
+    if args.dem_path is None:
+        dem_path = os.path.join(*args.out_tif.split('/')[:-1],'dem_tmp.tif')
+    else:
+        dem_path = args.dem_path
+    
+    if not os.path.exists(dem_path):
+        print("Downloading DEM to", dem_path)
+        download_DEM(roi, dem_path)
+    
+    
+    dem_slope_path = dem_path[:-4]+'_slope.tif'
     print(args.landsat_files, crs)
     # img_paths = ['../2022_1/landsat2022_1.tif','../2022_2/landsat2022_2.tif']
-    preprocess_optical(args.out_tif, args.landsat_files, roi, args.dem_path)
-    generate_shapefile(args.out_tif, dem_slope_path, args.out_shapefile, crs)
+    preprocess_optical(args.out_tif, args.landsat_files, roi, dem_path)
+    generate_shapefile(args.out_tif, dem_slope_path, args.out_shapefile, args.ref_shapefile, crs)

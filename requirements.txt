@@ -4,3 +4,4 @@ fiona
 netCDF4
 rasterio
 sentinelsat
+elevation
