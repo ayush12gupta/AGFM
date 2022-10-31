@@ -90,14 +90,18 @@ def offset_compute(csv_file, config, cwd):
         master, slave = row['Master'], row['Slave']
         # Skip offset tracking for the file which have already been computed
         if os.path.exists(f'./{id}/velocity.tif'):
+            data_pairs = pd.read_csv(csv_file, header=0)
+            data_pairs.at[index,'Status'] = 1
+            data_pairs.to_csv(csv_file, index=False)
             continue
+
         os.makedirs(f'./{id}', exist_ok=True)
         os.chdir(f'./{id}')
         
         # If coregistered image exists
         if os.path.exists(f'../../merged/SLC/{slave}/{slave}.slc.full'):
             offset_tracking(config, cwd, str(master), str(slave), id)
-
+            data_pairs.at[index,'Status'] = 1
         data_pairs = pd.read_csv(os.path.join('../', csv_file), header=0)
         if os.path.exists('velocity.tif'):
             data_pairs.at[index,'Status'] = 1
@@ -117,7 +121,8 @@ def compute_svd(A, L, deltaT, dT, nodata, num, N):
     L = np.array(L).reshape(num, -1)*deltaT[0]
     U, s, VT = np.linalg.svd(A, full_matrices=True)
     S_inv = np.zeros(A.shape).T
-    S_inv[:N-1,:N-1] = np.diag(1/s[:N-1])
+    # S_inv[:N-1,:N-1] = np.diag(1/s[:N-1])
+    S_inv[:N,:N] = np.diag(1/s[:N])
     x_svd = ((VT.T.dot(S_inv).dot(U.T))@L) #.reshape(N, shp[0], shp[1])
     La = (A@x_svd).reshape(-1, num)/dT
     La = La.reshape(num, shp[0], shp[1])
