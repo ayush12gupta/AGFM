@@ -74,6 +74,7 @@ def read_raster(fn, band=1):
 def download_DEM(roi, out_path):
     bound = (roi[2]-0.5, roi[0]-0.5, roi[3]+0.5, roi[1]+0.5)
     cmd = f'eio --product SRTM1 clip -o {out_path} --bounds {bound[0]} {bound[1]} {bound[2]} {bound[3]}'
+    print(cmd)
     os.system(cmd)
 
 

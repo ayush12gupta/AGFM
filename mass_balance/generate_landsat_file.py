@@ -47,9 +47,10 @@ def generate_indices(landsat_dir, out_filename, reflectance=False):
     # red = read_raster(glob.glob(landsat_dir+'/*_B4.TIF')[0])
     nir = read_raster(glob.glob(landsat_dir+'/*_B5.TIF')[0])
     swir = read_raster(glob.glob(landsat_dir+'/*_B6.TIF')[0])
-    mult_term, add_term, sun_elevation = read_meta(glob.glob(f'{landsat_dir}/*_MTL.txt')[0])
+    
     if reflectance:
         print("Applying reflectance")
+        mult_term, add_term, sun_elevation = read_meta(glob.glob(f'{landsat_dir}/*_MTL.txt')[0])
         green = convert2refl(green, 3, mult_term, add_term, sun_elevation)
         nir_ref = convert2refl(nir, 5, mult_term, add_term, sun_elevation)
         swir_ref = convert2refl(swir, 6, mult_term, add_term, sun_elevation)

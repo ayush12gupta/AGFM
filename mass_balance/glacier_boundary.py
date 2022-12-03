@@ -64,6 +64,7 @@ def preprocess_optical(opt_name, img_paths, roi, dem_path):
         os.remove(dem_out)
 
     os.system(f'gdalwarp -s_srs "EPSG:4326" -t_srs "+proj=utm +zone={zone} +datum=WGS84 +units=m +no_defs" -te {bbox[0]} {bbox[1]} {bbox[2]} {bbox[3]} -of GTIFF {dem_path} {dem_out}')
+    print(f'gdalwarp -te {roi[0]} {roi[2]} {roi[1]} {roi[3]} -of GTIFF {dem_path} {dem_out}')
 
     ds = gdal.Open(dem_out)
     dem = ds.GetRasterBand(1).ReadAsArray()
@@ -113,6 +114,7 @@ def preprocess_optical(opt_name, img_paths, roi, dem_path):
 
 def generate_shapefile(optical_data, dem_slope_path, out_shp, ref_shp, crs):  
     dem_slope = read_raster(dem_slope_path)
+    print(dem_slope, dem_slope_path)
     dem = dem_slope.astype('float32')/(dem_slope.max())
     dem = cv2.GaussianBlur(dem,(51,51),10)
     ds = gdal.Open(optical_data)
@@ -237,6 +239,7 @@ if __name__=='__main__':
     
     if not os.path.exists(dem_path):
         print("Downloading DEM to", dem_path)
+        print(roi)
         download_DEM(roi, dem_path)
     
     dem_slope_path = dem_path[:-4]+'_slope.tif'
