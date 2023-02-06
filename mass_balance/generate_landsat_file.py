@@ -42,11 +42,11 @@ def convert2refl(arr, band, mult_term, add_term, sun_elevation):
 
 def generate_indices(landsat_dir, out_filename, reflectance=False):
     
-    print(landsat_dir+'/*_B3.TIF')
     green = read_raster(glob.glob(landsat_dir+'/*_B3.TIF')[0])
     # red = read_raster(glob.glob(landsat_dir+'/*_B4.TIF')[0])
     nir = read_raster(glob.glob(landsat_dir+'/*_B5.TIF')[0])
     swir = read_raster(glob.glob(landsat_dir+'/*_B6.TIF')[0])
+    qa = read_raster(glob.glob(landsat_dir+'/*_QA_PIXEL.TIF')[0])
     mult_term, add_term, sun_elevation = read_meta(glob.glob(f'{landsat_dir}/*_MTL.txt')[0])
     if reflectance:
         print("Applying reflectance")
@@ -58,16 +58,16 @@ def generate_indices(landsat_dir, out_filename, reflectance=False):
     if reflectance:
         NDSI = (green-swir_ref)/(green+swir_ref)
         NDWI = (green-nir_ref)/(green+nir_ref)
-        NDSI[nodata] = -32767
-        NDWI[nodata] = -32767
         swir_ref = None
         nir_ref = None
         green = None
     else:
         NDSI = (green-swir)/(green+swir)
         NDWI = (green-nir)/(green+nir)
-        NDSI[nodata] = -32767
-        NDWI[nodata] = -32767
+        
+    NDSI[nodata] = -32767
+    NDWI[nodata] = -32767
+    qa[nodata] = -32767
 
     NSWIR = nir/swir
     print(NSWIR.max())
@@ -82,7 +82,7 @@ def generate_indices(landsat_dir, out_filename, reflectance=False):
     geo = ds.GetGeoTransform()
     ds = None
 
-    ds = numpy_array_to_raster(f'{landsat_dir}/{out_filename}', np.array([NSWIR, NDSI, NDWI]), projs, geo, nband=3)
+    ds = numpy_array_to_raster(f'{landsat_dir}/{out_filename}', np.array([NSWIR, NDSI, NDWI, qa]), projs, geo, nband=4)
     ds.FlushCache()
     ds = None
 

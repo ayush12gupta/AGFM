@@ -3,3 +3,5 @@ __pycache__/
 */*/__pycache__/*
 *.xml
 mass_balance/*.txt
+data/*.txt
+*.jpg
