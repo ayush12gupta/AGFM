@@ -25,9 +25,9 @@ usage: single_process.py [-h] [--reference REFERENCE] [--secondary SECONDARY]
 optional arguments:
   -h, --help            show this help message and exit
   --reference REFERENCE
-                        URL of reference zip file
+                        Sentinel1 scene name of reference zip file
   --secondary SECONDARY
-                        URL of secondary zip file
+                        Sentinel1 scene name of secondary zip file
   --save_path SAVE_PATH
                         directory in which orbit file needs to be saved
   --netCDF_out NETCDF_OUT
@@ -58,7 +58,7 @@ Output files may include all or few
 For estimating velocity maps for a batch of images, we take in a [CSV file](./data/data_download1.csv) as input which contains:
 
 * Pair Name
-* Master and Slave URL
+* Master and Slave Sentinel1 scene name 
 * Region of Interest (lat/lon) --> Eg: [32.06, 32.77, 76.86, 77.82]
 * Status
 
