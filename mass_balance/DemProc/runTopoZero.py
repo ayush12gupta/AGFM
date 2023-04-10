@@ -26,7 +26,7 @@ def runTopoZero(self):
 def createZeroDEM(self):
 
     outname = self.demzeroFilename
-    ds =  gdal.Open(self.demFilename, gdal.GA_ReadOnly)
+    ds =  gdal.Open(os.path.join(self.demFilename, '.vrt'), gdal.GA_ReadOnly)
     width = ds.RasterXSize
     length = ds.RasterYSize
     transform = ds.GetGeoTransform()

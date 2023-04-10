@@ -18,7 +18,7 @@ parser.add_argument('--secondary', type=str, required=True, help="URL of seconda
 parser.add_argument('--orbit_path', type=str, default="./orbits/", help="directory in which orbit file needs to be saved")
 parser.add_argument('--data_pathR', type=str, default="./data/", help="directory in which reference data files needs to be saved")
 parser.add_argument('--data_pathS', type=str, default="./data/", help="directory in which secondary data files needs to be saved")
-parser.add_argument('--config', type=str, default="/DATA/glacier-vel/Automated_Offset_Tracking/configs/isce_config.json", help="ISCE config file")
+parser.add_argument('--config', type=str, default="{}/configs/isce_config.json".format(os.getcwd()), help="ISCE config file")
 parser.add_argument('--roi', type=str, default=None, help="Region of interest")
 parser.add_argument('--type', type=str, default='topsApp', help="Type of process [Options: 'topsApp', 'demApp']")
 
