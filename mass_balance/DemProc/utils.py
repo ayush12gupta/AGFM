@@ -7,6 +7,14 @@ def normalise2(data, mini, maxi):
     return data
 
 
+def aMat2d(line, pixel, numPow2D = 5):
+    Ai = []
+    for i in range(numPow2D+1):
+        for j in range(i+1):
+            Ai.append( pow(line, (i-j)) * pow(pixel, j) )
+    return np.array(Ai)
+
+
 def matTxmat(mat1, mat2):
     return mat1.T@mat2
 
@@ -17,6 +25,17 @@ def polyVal(C, line, pixel, height):
     height2 = height*height
     return C[0,0] + C[1,0]*line + C[2,0]*pixel + C[3,0]*height + C[4,0]*line*pixel + \
             C[5,0]*line*height + C[6,0]*pixel*height + C[7,0]*line2 + C[8,0]*pixel2 + C[9,0]*height2
+
+
+def polyVal2d(lin, pix, beta, numcoef2D=5):
+    idx = 0
+    value = 0
+    for i in range(numcoef2D+1):
+        for j in range(i+1):
+            value += (beta[idx]*pow(lin, i-j)*pow(pix, j))
+            idx += 1
+    
+    return value
 
 
 def computeSlope(xc, yc, dem, slopeCalRadius):

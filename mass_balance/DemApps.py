@@ -146,6 +146,15 @@ DEMZ_FILENAME = Application.Parameter(
      mandatory=False,
      doc="Filename of the Zero like Digital Elevation Model (DEM)")
 
+DEM_METHOD = Application.Parameter(
+    'dem_method',
+    public_name='dem method',
+    default='schwabisch',
+    type=str,
+    mandatory=False,
+    doc="DEM generation method to use. Option: [schwabisch, ambiguity]."
+)
+
 GEOCODE_DEM_FILENAME = Application.Parameter(
         'geocodeDemFilename',
         public_name='geocode demfilename',
@@ -623,6 +632,16 @@ RUN_UNWRAP_2STAGE = Application.Facility(
     doc="Unwrapping module"
 )
 
+RUN_DEM_GENERATOR = Application.Facility(
+    'runComputeDem',
+    public_name='Run Compute Dem',
+    module='isceobj.DemProc',
+    factory='createUnwrapper',
+    args=(SELF(), DEM_METHOD),
+    mandatory=False,
+    doc="Unwrapping module"
+)
+
 _INSAR = Application.Facility(
     '_insar',
     public_name='demproc',
@@ -711,6 +730,7 @@ class DemInSAR(Application):
                      DEM_STITCHER,
                      RUN_UNWRAPPER,
                      RUN_UNWRAP_2STAGE,
+                     RUN_DEM_GENERATOR,
                      _INSAR)
 
     _pickleObj = "_insar"
@@ -889,7 +909,7 @@ class DemInSAR(Application):
         self.runGeocode = DemProc.createGeocode(self)
         self.runDenseOffsets = DemProc.createDenseOffsets(self)
         self.runOffsetFilter = DemProc.createOffsetFilter(self)
-        self.runComputeDem = DemProc.createDem(self)
+        # self.runComputeDem = DemProc.createDem(self)
         
         return None
 
@@ -964,7 +984,6 @@ class DemInSAR(Application):
 
         ###Filter the interferogram
         self.step('filter', func=self.runFilter)
-
 
         # Unwrap ?
         self.step('unwrap', func=self.runUnwrapper)

@@ -59,6 +59,13 @@ def createUnwrapper(other, do_unwrap = None, unwrapperName = None,
         from .runUnwrapGrass import runUnwrap
     return _RunWrapper(other, runUnwrap)
 
+def createDem(other, method = None):
+    if method.lower() == 'schwabisch':
+        from .runComputeDEM_sch import runComputeDEM_sch as runComputeDEM
+    elif method.lower() == 'ambiguity':
+        from .runComputeDEM_amb import runComputeDEM
+    return _RunWrapper(other, runComputeDEM)
+
 def createUnwrap2Stage(other, do_unwrap_2stage = None, unwrapperName = None):
     if (not do_unwrap_2stage) or (unwrapperName.lower() == 'icu') or (unwrapperName.lower() == 'grass'):
         #if not defined create an empty method that does nothing
@@ -90,7 +97,7 @@ createFineOffsets = _factory("runFineOffsets")
 createFineResamp = _factory("runFineResamp")
 createIon = _factory("runIon")
 createBurstIfg = _factory("runBurstIfg")
-createDem = _factory("runComputeDEM")
+# createDem = _factory("runComputeDEM")
 createMergeBursts = _factory("runMergeBursts")
 createFilter = _factory("runFilter")
 createGeocode = _factory("runGeocode")
