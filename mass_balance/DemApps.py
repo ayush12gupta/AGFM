@@ -636,10 +636,10 @@ RUN_DEM_GENERATOR = Application.Facility(
     'runComputeDem',
     public_name='Run Compute Dem',
     module='isceobj.DemProc',
-    factory='createUnwrapper',
+    factory='createDem',
     args=(SELF(), DEM_METHOD),
     mandatory=False,
-    doc="Unwrapping module"
+    doc="DEM generation module"
 )
 
 _INSAR = Application.Facility(
@@ -662,6 +662,7 @@ class DemInSAR(Application):
                       UNWRAPPER_NAME,
                       DEM_FILENAME,
                       DEMZ_FILENAME,
+                      DEM_METHOD,
                       GEOCODE_DEM_FILENAME,
                       NUMBER_AZIMUTH_LOOKS,
                       NUMBER_RANGE_LOOKS,

@@ -7,7 +7,7 @@
 import numpy as np 
 import os
 import time
-import glob
+from glob import glob
 import isceobj
 import datetime
 import logging
