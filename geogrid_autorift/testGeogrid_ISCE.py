@@ -68,8 +68,12 @@ def cmdLineParse():
             help='Input chip size max in Y')
     parser.add_argument('-ssm', '--ssm', dest='ssmfile', type=str, default="",
             help='Input stable surface mask')
+    parser.add_argument('-stackfl', '--stackfl', dest='stackfile', type=str, default=None,
+            help='Input chip size max in Y')
     parser.add_argument('-fo', '--flag_optical', dest='optical_flag', type=bool, required=False, default=0,
             help='flag for reading optical data (e.g. Landsat): use 1 for on and 0 (default) for off')
+    parser.add_argument('-r', '--roi', dest='roi', type=str, default="[32.06, 32.77, 76.86, 77.82]",
+            help='Input ROI')
 
     return parser.parse_args()
 
@@ -330,16 +334,28 @@ def getazimuthAngle(filename):
     return azimuth_angle
 
 
-def generateFile(obj, xlim, ylim):
+def generateFile(obj, xlim, ylim, stack_file=None):
     from iscesys import DateTimeUtil as DTU
     import xml.etree.ElementTree as ET
     
-    try:
-        tree = ET.parse(obj.ref_fn[::-1].split('/', 1)[-1][::-1] + '/reference.xml')
-        ref_dir = str(tree.getroot().findall(".//*[@name='safe']")[0].text[1:-1])
-        azimuth_angle = getazimuthAngle(ref_dir[1:-1])
-    except:
-        azimuth_angle = 0
+    if stack_file is None:
+        try:
+            tree = ET.parse(obj.ref_fn[::-1].split('/', 1)[-1][::-1] + '/reference.xml')
+            ref_dir = str(tree.getroot().findall(".//*[@name='safe']")[0].text[1:-1])
+            azimuth_angle = getazimuthAngle(ref_dir[1:-1])
+        except:
+            azimuth_angle = 0
+    else:
+        # try:
+        fl = open(stack_file)
+        for l_no, line in enumerate(fl):
+            if 'dirname' in line:
+                sar_dir = line.split(':')[-1][1:-1]
+        fl.close()
+        azimuth_angle = getazimuthAngle(sar_dir)
+        # except:
+        #     azimuth_angle = 0
+            
     grd_res = obj.rangePixelSize / math.sin(obj.incidenceAngle)
     sensingStart = DTU.seconds_since_midnight(obj.sensingStart)
     tmid = obj.sensingStart + datetime.timedelta(seconds = (np.floor(obj.numberOfLines/2)-1) / obj.prf)
@@ -401,7 +417,7 @@ def generateFile(obj, xlim, ylim):
             f.write('\n')
 
 
-def runGeogrid(info, info1, dem, dhdx, dhdy, vx, vy, srx, sry, csminx, csminy, csmaxx, csmaxy, ssm, **kwargs):
+def runGeogrid(info, info1, dem, dhdx, dhdy, vx, vy, srx, sry, csminx, csminy, csmaxx, csmaxy, ssm, stackfile, **kwargs):
     '''
     Wire and run geogrid.
     '''
@@ -458,7 +474,9 @@ def runGeogrid(info, info1, dem, dhdx, dhdy, vx, vy, srx, sry, csminx, csminy, c
 
     obj.getIncidenceAngle()
     xlim, ylim = determineBbox(obj)
-    generateFile(obj, xlim, ylim)
+    
+    print(stackfile)
+    generateFile(obj, xlim, ylim, stackfile)
     obj.geogrid()
     with open('testGeogrid.txt', 'a') as f:
         line = "Scene-center lat/lon: " + str(obj.cen_lat) + "  " + str(obj.cen_lon)
@@ -577,14 +595,18 @@ def main():
 
     inps = cmdLineParse()
 
+    from util import generate_dem_products
+    generate_dem_products(inps.demfile, inps.roi, stackfile=inps.stackfile)
+    
     if inps.optical_flag == 1:
         metadata_m, metadata_s = coregisterLoadMetadataOptical(inps.indir_m, inps.indir_s)
         runGeogridOptical(metadata_m, metadata_s, inps.demfile, inps.dhdxfile, inps.dhdyfile, inps.vxfile, inps.vyfile, inps.srxfile, inps.sryfile, inps.csminxfile, inps.csminyfile, inps.csmaxxfile, inps.csmaxyfile, inps.ssmfile)
     else:
         metadata_m = loadMetadata(inps.indir_m)
         metadata_s = loadMetadata(inps.indir_s)
-        runGeogrid(metadata_m, metadata_s, inps.demfile, inps.dhdxfile, inps.dhdyfile, inps.vxfile, inps.vyfile, inps.srxfile, inps.sryfile, inps.csminxfile, inps.csminyfile, inps.csmaxxfile, inps.csmaxyfile, inps.ssmfile)
-
+        # runGeogrid(metadata_m, metadata_s, inps.demfile, inps.dhdxfile, inps.dhdyfile, inps.vxfile, inps.vyfile, inps.srxfile, inps.sryfile, inps.csminxfile, inps.csminyfile, inps.csmaxxfile, inps.csmaxyfile, inps.ssmfile)
+        runGeogrid(metadata_m, metadata_s, 'dem_crop.tif', 'dem_x.tif', 'dem_y.tif', inps.vxfile, inps.vyfile, inps.srxfile, inps.sryfile, inps.csminxfile, inps.csminyfile, inps.csmaxxfile, inps.csmaxyfile, inps.ssmfile, inps.stackfile)
+        
 
 if __name__ == '__main__':
     main()

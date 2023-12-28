@@ -6,7 +6,7 @@ from pyproj import Transformer
 
 
 # config ### HARD CODED
-GDAL_DATA_TYPE = gdal.GDT_Float64 
+GDAL_DATA_TYPE = gdal.GDT_Float32 
 GEOTIFF_DRIVER_NAME = "GTiff"
 NO_DATA = -32767
 SPATIAL_REFERENCE_SYSTEM_WKID = 32767

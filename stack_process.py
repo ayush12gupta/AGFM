@@ -21,6 +21,7 @@ parser.add_argument('--data_path', type=str, default="/DATA/glacier-vel/stack/",
 parser.add_argument('--download_txt', type=str, default="./data/data_download.csv", help="Data CSV file")
 parser.add_argument('--config', type=str, default="./configs/data_config.json", help="Data config file")
 
+
 args = parser.parse_args()
 
 
@@ -309,14 +310,14 @@ def main():
     write_time('runtime.txt', exec_time)
     start_time = prev
     
-    print('Starting Velocity Correction ...')
-    os.chdir('../')
-    if os.path.exists('./velocity_corrected'):
-        shutil.rmtree('./velocity_corrected')
-    os.makedirs('./velocity_corrected')
-    os.chdir('./velocity_corrected')
-    velocity_correction(pair_fn, '../offset_tracking/', dates, VELOCITY_CORR_GAP)
-    os.chdir('../')
+    # print('Starting Velocity Correction ...')
+    # os.chdir('../')
+    # if os.path.exists('./velocity_corrected'):
+    #     shutil.rmtree('./velocity_corrected')
+    # os.makedirs('./velocity_corrected')
+    # os.chdir('./velocity_corrected')
+    # velocity_correction(pair_fn, '../offset_tracking/', dates, VELOCITY_CORR_GAP)
+    # os.chdir('../')
 
     prev = time.time()
     exec_time.append(prev-start_time)

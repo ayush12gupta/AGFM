@@ -41,7 +41,7 @@ def create_topsApp(config, roi, dem_path, name='topsApp'):
         <property name="minimum window size for filtering ionosphere phase">{14}</property>
         <property name="maximum window size for filtering ionosphere azimuth shift">{15}</property>
         <property name="minimum window size for filtering ionosphere azimuth shift">{16}</property>
-        <property name="demfilename">{17}</property>
+        <!--<property name="demfilename">{17}</property>-->
         <!--<property name="geocode demfilename">path_to_your_dem</property>-->
         <!--property name="geocode list">['merged/phsig.cor', 'merged/filt_topophase.unw', 'merged/los.rdr', 'merged/topophase.flat', 'merged/filt_topophase.flat','merged/topophase.cor','merged/filt_topophase.unw.conncomp']</property>-->
     </component>

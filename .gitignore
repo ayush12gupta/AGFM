@@ -6,3 +6,7 @@ mass_balance/*.txt
 data/*.txt
 *.jpg
 */.ipynb_checkpoints/
+*/.log
+.vscode/
+*.log
+*/.~lock*

@@ -64,7 +64,7 @@ def cmdLineParse():
             help='Input chip size min file name')
     parser.add_argument('-csmax', '--input_csmax', dest='chip_size_max', type=str, required=False,
             help='Input chip size max file name')
-    parser.add_argument('-chipmin', '--min_chip', dest='chip_min', type=int, required=False, default=256,
+    parser.add_argument('-chipmin', '--min_chip', dest='chip_min', type=int, required=False, default=128,
             help='Input chip size min integer')
     parser.add_argument('-chipmax', '--max_chip', dest='chip_max', type=int, required=False, default=512,
             help='Input chip size max integer')
@@ -163,6 +163,7 @@ def runAutorift(I1, I2, xGrid, yGrid, Dx0, Dy0, SRx0, SRy0, CSMINx0, CSMINy0, CS
     if optflag == 0:
         I1 = np.abs(I1)
         I2 = np.abs(I2)
+        
 
     obj.I1 = I1
     obj.I2 = I2
@@ -261,10 +262,17 @@ def runAutorift(I1, I2, xGrid, yGrid, Dx0, Dy0, SRx0, SRy0, CSMINx0, CSMINy0, CS
             obj.ChipSize0X = 8
     
     ## CHIP SIZE HARD CODED ##
+    chipsizex0 = float(str.split(runCmd('fgrep "Smallest Allowable Chip Size in m:" testGeogrid.txt'))[-1])
+    pixsizex = float(str.split(runCmd('fgrep "Ground range pixel size:" testGeogrid.txt'))[-1])
+    pixsizey = float(str.split(runCmd('fgrep "Azimuth pixel size:" testGeogrid.txt'))[-1])
+    
     obj.ChipSizeMaxX = chip_max
     obj.ChipSizeMinX = chip_min
-    obj.ChipSize0X = chip_min//2
-    print('!!! test', obj.ChipSizeMinX, obj.ChipSizeMaxX)
+    obj.ChipSize0X = int(np.ceil(chipsizex0/pixsizex/4)*4) #chip_min//2
+    obj.ScaleChipSizeY = 0.25 #int(pixsizex/pixsizey)
+    obj.ScaleChipSizeY = (pixsizex/pixsizey)
+    print('!!! test', obj.ChipSizeMinX, obj.ChipSizeMaxX, obj.ScaleChipSizeY, obj.I1.dtype)
+    print('erer', I1.shape, I1.dtype)
     # create the downstream search offset if not provided as input
     if Dx0 is not None:
         obj.Dx0 = Dx0
@@ -385,7 +393,7 @@ def runAutorift(I1, I2, xGrid, yGrid, Dx0, Dy0, SRx0, SRy0, CSMINx0, CSMINy0, CS
     import cv2
     kernel = np.ones((3,3),np.uint8)
     noDataMask = cv2.dilate(noDataMask.astype(np.uint8),kernel,iterations = 1)
-    noDataMask = noDataMask.astype(np.bool)
+    noDataMask = noDataMask.astype(bool)
 
 
     return obj.Dx, obj.Dy, obj.InterpMask, obj.ChipSizeX, obj.GridSpacingX, obj.ScaleChipSizeY, obj.SearchLimitX, obj.SearchLimitY, obj.origSize, noDataMask
@@ -403,7 +411,7 @@ def main():
                             chip_size_min=inps.chip_size_min,chip_size_max=inps.chip_size_max,
                             offset2vx=inps.offset2vx, offset2vy=inps.offset2vy,
                             stable_surface_mask=inps.stable_surface_mask, optical_flag=inps.optical_flag,
-                            nc_sensor=inps.nc_sensor, mpflag=inps.mpflag, ncname=inps.ncname, post_config=inps.post_config, chip_min=inps.chip_min, chip_max=inps.chip_min, do_post=inps.post)
+                            nc_sensor=inps.nc_sensor, mpflag=inps.mpflag, ncname=inps.ncname, post_config=inps.post_config, chip_min=inps.chip_min, chip_max=inps.chip_max, do_post=inps.post)
 
 
 def generateAutoriftProduct(indir_m, indir_s, grid_location, init_offset, search_range, chip_size_min, chip_size_max,
@@ -642,8 +650,10 @@ def generateAutoriftProduct(indir_m, indir_s, grid_location, init_offset, search
                 offset2va[offset2va == nodata] = np.nan
 
 
-            VX = offset2vx_1 * DX + offset2vx_2 * DY
-            VY = offset2vy_1 * DX + offset2vy_2 * DY
+            # VX = offset2vx_1 * DX + offset2vx_2 * DY
+            # VY = offset2vy_1 * DX + offset2vy_2 * DY
+            VX = offset2vr * DX
+            VY = offset2va * DY
             VX = VX.astype(np.float32)
             VY = VY.astype(np.float32)
 
@@ -1105,12 +1115,11 @@ def generateAutoriftProduct(indir_m, indir_s, grid_location, init_offset, search
                 else:
                     raise Exception('netCDF packaging not supported for the type "{0}"'.format(nc_sensor))
 
-            from util import postprocess
-            # Reading config file
-            with open(post_config, 'r') as f:
-                config = json.load(f)
-
             if do_post:
+                from util import postprocess
+                # Reading config file
+                with open(post_config, 'r') as f:
+                    config = json.load(f)
                 postprocess(ncname, kwargs, config)
         
         print("Write Outputs Done!!!")

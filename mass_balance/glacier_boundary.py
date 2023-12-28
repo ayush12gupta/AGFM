@@ -15,6 +15,7 @@ from utils import *
 parser = argparse.ArgumentParser()
 parser.add_argument('--out_tif', type=str, default="./optical.tif", help="Path to the output optical merged image")
 parser.add_argument('--roi', type=str, default="[32.06, 32.77, 76.86, 77.82]", help="Region of interest")
+parser.add_argument('--mode', type=str, default="post", help="Define till what step to run ['pre', 'post']")
 parser.add_argument('--dem_path', type=str, default=None, help="directory in which DEM file needs to be saved")
 parser.add_argument('--out_shapefile', type=str, default="./", help="Path to the output shapefile")
 parser.add_argument('--ref_shapefile', type=str, default=None, help="Path to the reference shapefile")
@@ -30,6 +31,7 @@ def stitch_images(images, dem_path, band):
     h, w = dem.shape
     ds = None
     comb = np.zeros((h, w))
+    comb[:,:] = -32767
     region = (comb==1)
     for i in range(N):
         img = read_raster(images[i], band)
@@ -56,7 +58,8 @@ def preprocess_optical(opt_name, img_paths, roi, dem_path):
     ds = None
     bbox = get_bbox(roi)
     # print(bbox)
-    dem_out = os.path.join(*dem_path.split('/')[:-1])+'/dem_crop.tif'
+    dem_out = os.path.join(dem_path[::-1].split('/', 1)[1][::-1], 'dem_crop.tif')
+    # dem_out = os.path.join(*dem_path.split('/')[:-1])+'/dem_crop.tif'
     zone = round((180+roi[2])/6)
 
     # Input DEM mush be in WGS Projection
@@ -223,6 +226,8 @@ def generate_shapefile(optical_data, dem_slope_path, out_shp, ref_shp, crs):
 
 
 if __name__=='__main__':
+    print(args.out_tif, args.out_tif[::-1].split('/', 1)[1][::-1], 'gg')
+    
     roi = np.array(args.roi[1:-1].replace(' ','').split(',')).astype('float')
     zone = round((180+roi[2:].mean())/6)
     print(roi, zone)
@@ -230,7 +235,8 @@ if __name__=='__main__':
     crs = f'EPSG:{epsg}'
     # Checking for DEM file
     if args.dem_path is None:
-        dem_path = os.path.join(*args.out_tif.split('/')[:-1],'dem_tmp.tif')
+        # dem_path = os.path.join(*args.out_tif.split('/')[:-1],'dem_tmp.tif')
+        dem_path = os.path.join(args.out_tif[::-1].split('/', 1)[1][::-1],'dem_tmp.tif')
         # os.remove(dem_path)
     else:
         dem_path = args.dem_path
@@ -242,5 +248,8 @@ if __name__=='__main__':
     dem_slope_path = dem_path[:-4]+'_slope.tif'
     print(args.landsat_files, crs)
     # img_paths = ['../2022_1/landsat2022_1.tif','../2022_2/landsat2022_2.tif']
+    
     preprocess_optical(args.out_tif, args.landsat_files, roi, dem_path)
-    generate_shapefile(args.out_tif, dem_slope_path, args.out_shapefile, args.ref_shapefile, crs)
+    
+    if args.mode=='post':
+        generate_shapefile(args.out_tif, dem_slope_path, args.out_shapefile, args.ref_shapefile, crs)

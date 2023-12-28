@@ -205,7 +205,7 @@ def main(iargs=None):
     meanval = meanval * referenceTop.bursts[0].rangePixelSize
     stdval = stdval * referenceTop.bursts[0].rangePixelSize
 
-    hist, bins = np.histogram(val, 50, normed=1)
+    hist, bins = np.histogram(val, 50, density=1)
     center = 0.5*(bins[:-1] + bins[1:])
 
     outputDir = os.path.dirname(inps.output)

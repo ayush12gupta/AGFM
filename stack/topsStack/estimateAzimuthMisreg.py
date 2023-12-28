@@ -141,7 +141,7 @@ def main(iargs=None):
     meanval = np.mean(val)
     stdval = np.std(val)
 
-    hist, bins = np.histogram(val, 50, normed=1)
+    hist, bins = np.histogram(val, 50, density=1)
     center = 0.5*(bins[:-1] + bins[1:])
 
 
