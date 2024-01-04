@@ -23,6 +23,7 @@ parser.add_argument('-t', '--download_txt', type=str, default="./data/data_downl
 parser.add_argument('--config', type=str, default="./configs/data_config.json", help="Data config file")
 parser.add_argument('-m', '--mode', dest="mode", type=str, default='offset', help="Option: ['download', 'coreg', 'offset', 'post']")
 parser.add_argument('-shp', '--glacier_shp', dest='shpfile', type=str, default=None, help='Glacier Shapefile path')
+parser.add_argument('-p', '--polarization', type=str, default="vh", help="Polarisation to be used")
 # parser.add_argument('--dem', dest="dem_path", type=str, required=True, help="Path for DEM file")
 
 
@@ -340,7 +341,7 @@ def main():
         dem = glob.glob('*.wgs84')
         print("Using DEM file", dem)
         if not os.path.exists('./run_files'):
-            execute(f'python3 {DIR_PATH}/stack/topsStack/stackSentinel.py -s {args.data_path} -d {dem[0]} -a {args.aux} -o {config["Orbit_dir"]} -b "{config_isce["ROI"][1:-1].replace(",","")}" -t "python3 {DIR_PATH}/stack/topsStack/" -W slc')
+            execute(f'python3 {DIR_PATH}/stack/topsStack/stackSentinel.py -s {args.data_path} -d {dem[0]} -a {args.aux} -o {config["Orbit_dir"]} -p {args.polarization} -b "{config_isce["ROI"][1:-1].replace(",","")}" -t "python3 {DIR_PATH}/stack/topsStack/" -W slc')
 
         run_files = glob.glob('run_files/*')
         flag = 0

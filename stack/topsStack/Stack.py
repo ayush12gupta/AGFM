@@ -1760,7 +1760,7 @@ class sentinelSLC(object):
            obj.swathNumber = int(swathnum)
            print(obj.polarization)
            # add by Minyan
-           obj.polarization='vv'
+        #    obj.polarization='vv'
           #obj.output = '{0}-SW{1}'.format(safe,swathnum)
            obj.parse()
 
