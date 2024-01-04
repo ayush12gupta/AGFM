@@ -283,7 +283,7 @@ def main():
     # Reading config files
     with open(args.config, 'r') as f:
         config = json.load(f)
-    with open('{DIR_PATH}/configs/isce_config.json', 'r') as f:
+    with open(f'{DIR_PATH}/configs/isce_config.json', 'r') as f:
         config_isce = json.load(f)
     bbox = config_isce["ROI"][1:-1].replace(",","")
 
