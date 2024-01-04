@@ -334,7 +334,9 @@ def main():
     if len(glob.glob('merged/SLC/*/*.slc.full'))==0:
         print(config_isce["ROI"][1:-1].replace(',',''))
         # execute('cp -r /DATA/glacier-vel/geogrid_req/dem/demLat_N31_N34_Lon_E076_E079* ./')
-        execute('cp -r /DATA/DinSAR/regioin3/demLat_N31_N34_Lon_E076_E080.dem* ./')
+        
+        ## HARDCODED !!!!!!!!!!!!!!!!!!!!!!
+        execute('cp -r /DATA/S2_Data/Dem/demLat_N31_N34_Lon_E076_E080.dem* ./')
         dem = glob.glob('*.wgs84')
         print("Using DEM file", dem)
         if not os.path.exists('./run_files'):
