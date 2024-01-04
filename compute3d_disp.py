@@ -26,11 +26,11 @@ def read_velocity(path):
 
 
 def save_raster_outputs(save_dir, V_nev):
-    if os.path.exists(dir):
-        shutil.rmtree(dir)
-    os.mkdir(dir)
+    if os.path.exists(save_dir):
+        shutil.rmtree(save_dir)
+    os.mkdir(save_dir)
     for i in range(V_nev.shape[0]):
-        ds = numpy_array_to_raster(f'{save_dir}stack_{i}_{i+1}_corrected.tif', V_nev[i], projs, geo, nband=3)
+        ds = numpy_array_to_raster(f'{save_dir}/stack_{i}_{i+1}_corrected.tif', V_nev[i], projs, geo, nband=3)
         ds.FlushCache()
         ds = None
 

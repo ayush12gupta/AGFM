@@ -13,6 +13,7 @@ from utils import execute, generate_dem_products, get_deltaT, read_vals, get_DT
 from datetime import datetime
 
 VELOCITY_CORR_GAP = 3 ## HARDCODED the number of redundant observations
+DIR_PATH = os.path.realpath(os.path.dirname(__file__))
 
 parser = argparse.ArgumentParser()
 parser.add_argument('-s', '--save_path', type=str, default="./output", help="directory in which orbit file needs to be saved")
@@ -74,7 +75,7 @@ def offset_tracking(config, cwd, master, slave, netCDF_out):
     execute('cp ../testGeogrid.txt testGeogrid.txt')
     if os.path.exists(f'../../merged/SLC/{master}/{master}.slc.full')&os.path.exists(f'../../merged/SLC/{slave}/{slave}.slc.full'):
         # cmd = f'time python {cwd}/geogrid_autorift/testautoRIFT_ISCE.py -m ../../merged/SLC/{master}/{master}.slc.full -s ../../merged/SLC/{slave}/{slave}.slc.full -g ../window_location.tif -chipmax {config["chip_max"]} -chipmin {config["chip_min"]} -mpflag {str(config["num_threads"])} -config {cwd}/configs/data_config.json -ncname {netCDF_out} -vx ../window_rdr_off2vel_x_vec.tif -vy ../window_rdr_off2vel_y_vec.tif -post' #-ssm window_stable_surface_mask.tif -nc S'
-        cmd = f'time python /home/pc/Automated_Offset_Tracking/geogrid_autorift/testautoRIFT_ISCE2.py -m ../../merged/SLC/{master}/{master}.slc.full -s ../../merged/SLC/{slave}/{slave}.slc.full -g ../window_location.tif -vx ../window_rdr_off2vel_x_vec.tif -vy ../window_rdr_off2vel_y_vec.tif -mpflag {str(config["num_threads"])} -config {cwd}/configs/data_config.json -post'
+        cmd = f'time python {DIR_PATH}/geogrid_autorift/testautoRIFT_ISCE2.py -m ../../merged/SLC/{master}/{master}.slc.full -s ../../merged/SLC/{slave}/{slave}.slc.full -g ../window_location.tif -vx ../window_rdr_off2vel_x_vec.tif -vy ../window_rdr_off2vel_y_vec.tif -mpflag {str(config["num_threads"])} -config {cwd}/configs/data_config.json -post'
         print('PO Command', cmd)
         execute(cmd)
     else:
@@ -157,9 +158,9 @@ def velocity_postprocess(csv_file, shpfile):
             date_s = datetime.strptime(date_s, '%Y/%m/%d')
             factor = int(abs((date_m - date_s).days))//12
             if shpfile is not None:
-                cmd = f'python /home/pc/Automated_Offset_Tracking/geogrid_autorift/postprocessing.py -d ./ -f {factor} -shp {shpfile}'
+                cmd = f'python {DIR_PATH}/geogrid_autorift/postprocessing.py -d ./ -f {factor} -shp {shpfile}'
             else:
-                cmd = f'python /home/pc/Automated_Offset_Tracking/geogrid_autorift/postprocessing.py -d ./ -f {factor}'
+                cmd = f'python {DIR_PATH}/geogrid_autorift/postprocessing.py -d ./ -f {factor}'
             print(cmd)
             execute(cmd)
             data_pairs.at[index,'Status'] = 2
@@ -282,7 +283,7 @@ def main():
     # Reading config files
     with open(args.config, 'r') as f:
         config = json.load(f)
-    with open('/home/pc/Automated_Offset_Tracking/configs/isce_config.json', 'r') as f:
+    with open('{DIR_PATH}/configs/isce_config.json', 'r') as f:
         config_isce = json.load(f)
     bbox = config_isce["ROI"][1:-1].replace(",","")
 
@@ -337,7 +338,7 @@ def main():
         dem = glob.glob('*.wgs84')
         print("Using DEM file", dem)
         if not os.path.exists('./run_files'):
-            execute(f'python3 /home/pc/Automated_Offset_Tracking/stack/topsStack/stackSentinel.py -s {args.data_path} -d {dem[0]} -a {args.aux} -o {config["Orbit_dir"]} -b "{config_isce["ROI"][1:-1].replace(",","")}" -t "python3 /home/pc/Automated_Offset_Tracking/stack/topsStack/" -W slc')
+            execute(f'python3 {DIR_PATH}/stack/topsStack/stackSentinel.py -s {args.data_path} -d {dem[0]} -a {args.aux} -o {config["Orbit_dir"]} -b "{config_isce["ROI"][1:-1].replace(",","")}" -t "python3 {DIR_PATH}/stack/topsStack/" -W slc')
 
         run_files = glob.glob('run_files/*')
         flag = 0
@@ -374,7 +375,7 @@ def main():
     pair_fn = '../image_pairs.csv'
     secondarys = sorted(os.listdir('../secondarys'))
     if not os.path.exists('window_location.tif'):
-        execute(f'python /home/pc/Automated_Offset_Tracking/geogrid_autorift/testGeogrid_ISCE.py -m ../reference -s ../secondarys/{secondarys[0]} -d ../{dem_vrt[0]} -r "[32.06, 32.60, 77.09, 77.82]" --stackfl ../configs/config_reference')   #  -ssm {config["ssm"]}
+        execute(f'python {DIR_PATH}/geogrid_autorift/testGeogrid_ISCE.py -m ../reference -s ../secondarys/{secondarys[0]} -d ../{dem_vrt[0]} -r "[32.06, 32.60, 77.09, 77.82]" --stackfl ../configs/config_reference')   #  -ssm {config["ssm"]}
     else:
         print("./window_location.tif  ---> Already exists")
     
@@ -417,4 +418,5 @@ def main():
 
 if __name__=='__main__':
     print(args.config, args.download_txt, args.mode)
+    
     main()
