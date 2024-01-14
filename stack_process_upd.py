@@ -341,7 +341,7 @@ def main():
         dem = glob.glob('*.wgs84')
         print("Using DEM file", dem)
         if not os.path.exists('./run_files'):
-            execute(f'python3 {DIR_PATH}/stack/topsStack/stackSentinel.py -s {args.data_path} -d {dem[0]} -a {args.aux} -o {config["Orbit_dir"]} -p {args.polarization} -b "{config_isce["ROI"][1:-1].replace(",","")}" -t "python3 {DIR_PATH}/stack/topsStack/" -W slc')
+            execute(f'python3 {DIR_PATH}/stack/topsStack/stackSentinel.py -s {args.data_path} -d {dem[0]} -a {args.aux} -o {config["Orbit_dir"]} -p {args.polarization} --num_proc 64 -b "{config_isce["ROI"][1:-1].replace(",","")}" -t "python3 {DIR_PATH}/stack/topsStack/" -W slc')
 
         run_files = glob.glob('run_files/*')
         flag = 0

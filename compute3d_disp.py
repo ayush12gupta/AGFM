@@ -1,13 +1,9 @@
 from shutil import copyfile, move # Utilities for copying and moving files
 from osgeo import gdal, osr            # GDAL support for reading virtual files
 import os, shutil                      # To create and remove directories
-import matplotlib.pyplot as plt   # For plotting
-import numpy as np  
-import fiona
-import netCDF4
-import rasterio
-from rasterio.mask import mask
-import scipy
+import numpy as np
+# from rasterio.mask import mask
+# import scipy
 from glob import glob
 import scipy.linalg as la
 from datetime import datetime
@@ -52,7 +48,7 @@ def initP(P, resi, sigma=None):
             # P[i] = 1/((2*sigma/np.abs(resi[i])))*P[i]
             if max(med-std, 0)>ab_resi[i]:
                 cnt = max(med-std, 0)-ab_resi[i]
-            elif med+std<ab_resi[i]:
+            elif med+std<=ab_resi[i]:
                 cnt = ab_resi[i] - (med+std)
                 
             # print(cnt)
@@ -94,6 +90,9 @@ def updateP(P, resi, sigma=None):
 
 
 def compute_3DVel(V_aoro, config_asc_path, config_des_path):
+    '''
+    V_aoro: [V_asc_rg, V_asc_az, V_des_rg, V_des_az]
+    '''
     V_nev_all = []
     MD = []
     v_sbas = []
@@ -190,6 +189,65 @@ def compute_3DVel(V_aoro, config_asc_path, config_des_path):
     return V_nev_all
 
 
+def compute_3DVel_single(V_aoro, config_asc_path, config_des_path):
+    incid_asc = (get_incang(config_asc_path))*(np.pi/180)
+    fl_ang_asc = (get_flightang(config_asc_path))*(np.pi/180)
+    incid_des = (get_incang(config_des_path))*(np.pi/180)
+    fl_ang_des = (get_flightang(config_des_path))*(np.pi/180)
+    
+    A = get_matA_3D(fl_ang_asc, incid_asc, fl_ang_des, incid_des)
+    
+    # b = V_aoro[ni,:,i,j]
+    # Initialising weights
+    P = np.eye(4)
+    P = initP(np.diag(P), V_aoro)
+    
+    for iter in range(10):
+        v_nev, res, rank, s = sp_lstsq(np.dot(P,A), np.dot(V_aoro,P), lapack_driver='gelsy', check_finite=False)
+        res = (V_aoro - np.dot(A, v_nev)).reshape(4)
+        P = updateP(np.diag(P), res)
+        
+        if np.median(np.abs(res))<1:
+            break
+
+    return v_nev.reshape(3), res
+
+
+def compute_3DVel_single_hermet(V_aoro, config_asc_path, config_des_path):
+    incid_asc = (get_incang(config_asc_path))*(np.pi/180)
+    fl_ang_asc = (get_flightang(config_asc_path))*(np.pi/180)
+    incid_des = (get_incang(config_des_path))*(np.pi/180)
+    fl_ang_des = (get_flightang(config_des_path))*(np.pi/180)
+    
+    A = get_matA_3D(fl_ang_asc, incid_asc, fl_ang_des, incid_des)
+    A1, A2 = A[::2], A[1::2]
+    b1, b2 = V_aoro[::2], V_aoro[1::2]
+    P = np.eye(4)
+    P = initP(np.diag(P), V_aoro)
+    P1 = np.diag(np.diag(P)[::2])
+    P2 = np.diag(np.diag(P)[1::2])
+    for i in range(3):
+        N = (A1.T@P1@A1) + (A2.T@P2@A2)
+        U = (A1.T@P1@b1) + (A2.T@P2@b2)
+        v_nev, res, rank, s = sp_lstsq(N, U, lapack_driver='gelsy', check_finite=False)
+        # print('it', it, np.dot(A, v_nev), b)
+        # print(np.diag(P1)[0], np.diag(P2)[0], np.diag(P1)[1], np.diag(P2)[1])
+        resi1 = (b1 - np.dot(A1, v_nev)) #.reshape(4)    
+        sigma01 = (resi1.T@P1@resi1)/2
+        # sigma01 = (resi1.T@resi1)/2
+        
+        resi2 = (b2 - np.dot(A2, v_nev)) #.reshape(4)
+        sigma02 = (resi2.T@P2@resi2)/2
+        P2 = (sigma01/sigma02)*P2
+        if sigma02==0:
+            break
+        
+        if np.abs(sigma01-sigma02)<1:
+            break
+    
+    res = (V_aoro - np.dot(A, v_nev))
+    return v_nev.reshape(3), res 
+    
 
 if __name__=="__main__":
     ds = gdal.Open('/DATA/test_stack_asc3/offset_tracking/stack_0_3/velocity_res_crop.tif')
