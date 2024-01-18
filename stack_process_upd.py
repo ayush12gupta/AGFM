@@ -5,11 +5,12 @@ import json
 import argparse
 import pandas as pd
 import numpy as np
+import subprocess, sys
 from osgeo import gdal
 import xml.etree.ElementTree as ET
 from preprocessing.get_orbit import get_orbit_fl
 from geogrid_autorift.util import numpy_array_to_raster
-from utils import execute, generate_dem_products, get_deltaT, read_vals, get_DT
+from utils import execute, generate_dem_products, get_deltaT, read_vals, get_DT, process_check_running
 from datetime import datetime
 
 VELOCITY_CORR_GAP = 3 ## HARDCODED the number of redundant observations
@@ -28,6 +29,18 @@ parser.add_argument('-p', '--polarization', type=str, default="vh", help="Polari
 
 
 args = parser.parse_args()
+
+# def execute_write(cmd, file):
+#     process = subprocess.Popen(cmd, stdout=subprocess.PIPE, shell=True)
+#     (process_output,  error) = process.communicate()
+#     file = open(file, "w")
+#     file.write(process_output)
+#     file.close()
+
+def execute_write(cmd, file, file_err):
+    f = open(file, "w")
+    f_err = open(file_err, "w")
+    subprocess.check_call(cmd, shell=True, stdout=f, stderr=f_err)
 
 
 def write_time(filename, exec_time):
@@ -298,6 +311,7 @@ def main():
     #     shutil.rmtree(args.data_path)
     os.makedirs(args.data_path, exist_ok=True)
     cwd = os.getcwd()
+    num_images = len(urls)
     
     for url in urls:
         # print(url.split('_')[5])
@@ -341,20 +355,55 @@ def main():
         dem = glob.glob('*.wgs84')
         print("Using DEM file", dem)
         if not os.path.exists('./run_files'):
-            execute(f'python3 {DIR_PATH}/stack/topsStack/stackSentinel.py -s {args.data_path} -d {dem[0]} -a {args.aux} -o {config["Orbit_dir"]} -p {args.polarization} --num_proc 64 -b "{config_isce["ROI"][1:-1].replace(",","")}" -t "python3 {DIR_PATH}/stack/topsStack/" -W slc')
+            execute(f'python3 {DIR_PATH}/stack/topsStack/stackSentinel.py -s {args.data_path} -d {dem[0]} -a {args.aux} -o {config["Orbit_dir"]} -p {args.polarization} -e 0.6 --num_proc 64 -b "{config_isce["ROI"][1:-1].replace(",","")}" -t "python3 {DIR_PATH}/stack/topsStack/" -W slc')
 
         run_files = glob.glob('run_files/*')
+        log_folder = 'log_files'
+        os.makedirs(log_folder, exist_ok=True)
+        if os.path.exists(f'{log_folder}/time_taken.txt'):
+            os.remove(f'{log_folder}/time_taken.txt')
+            
         flag = 0
         strt_time = time.time()
         for file in sorted(run_files):
+            txtfile = open(f'{log_folder}/time_taken.txt', 'a')
+            txtfile.write(f'Started process {file}\n')
+            txtfile.close()
+            
             if flag:
                 print("Coregisteration complete")
                 break
+            
             if 'merge' in file:
+                txtfile = open(f'{log_folder}/time_taken.txt', 'a')
+                txtfile.write(f'Exiting at step {file}\n')
+                txtfile.close()
                 flag = 1 
 
-            execute(f'bash ./{file}')
-            print(f"Time taken till {file}: ", time.time()-strt_time)
+            print("Starting Command:", f'bash ./{file}')
+            # execute_write(f'bash ./{file}',f'{log_folder}/{file.split("/")[-1]}.txt')
+            try:
+                num = int(file.split('/')[-1].split('_')[1])
+                # if num==11:
+                #     time.sleep(60*30)
+                    
+                execute_write(f'bash ./{file}', f'{log_folder}/{file.split("/")[-1]}.txt', f'{log_folder}/{file.split("/")[-1]}_error.txt')
+                while process_check_running(num):
+                    time.sleep(60)
+                    
+            except Exception as e:
+                print('Error occured at', file)
+                print(e)
+                txtfile = open(f'{log_folder}/exception.txt', 'a')
+                txtfile.write(f'Error occured in {file.split("/")[-1]}\n{e}\n')
+                txtfile.close()
+            
+            time_log = f"Time taken till {file}: {time.time()-strt_time}"
+            print(time_log)
+            txtfile = open(f'{log_folder}/time_taken.txt', 'a')
+            txtfile.write(f'{time_log}\n')
+            txtfile.close()
+            
         print("Time taken for stack coregisteration: ", time.time()-strt_time)
 
     prev = time.time()
@@ -362,9 +411,15 @@ def main():
     write_time('runtime.txt', exec_time)
     start_time = prev
     
-    if args.mode == 'coreg':
+    merged_files = glob.glob('merged/SLC/*/*.slc.full')
+    if len(merged_files)==num_images:
         print("Complete. Exiting ......")
-        return    
+    else:
+        print("Some issue occured. Exiting......")
+        return
+    
+    if args.mode == 'coreg':
+        return
 
     # Preparing for geogrid
     dem = glob.glob('*.wgs84')

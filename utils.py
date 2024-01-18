@@ -1,4 +1,4 @@
-import os
+import os, psutil
 import subprocess, sys
 from pyproj import Transformer
 from osgeo import gdal, osr
@@ -154,3 +154,25 @@ def generate_dem_products(dem_dir, bbox, config=None):
     ds = numpy_array_to_raster('dem_slope.tif', np.expand_dims(D, 0), projs, geo, nband=1)
     ds.FlushCache()
     ds = None
+
+
+def process_check_running(num):
+    check = ['config_reference', 'config_secondary', 'config_baseline', None, 'config_overlap_geo2rdr', 'config_overlap_resample',
+             'config_misreg', None, 'config_fullBurst_geo2rdr', 'config_fullBurst_resample', None, 'config_merge']
+    
+    if check[num-1] is None:
+        return False
+    
+    for proc in psutil.process_iter():
+        try:
+            processName = proc.cmdline()
+            if len(processName)!=0:
+                if 'python3' in processName[0]:
+                    cmd = ' '.join(processName)
+                    if check[num-1] in cmd:
+                        return True
+                
+        except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
+            pass
+    
+    return False

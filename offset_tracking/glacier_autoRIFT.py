@@ -554,6 +554,55 @@ def initializer(IMG, xGrid, yGrid, SearchLimitX, SearchLimitY, ChipSizeX, ChipSi
     var_dict['ChipSizeY'] = ChipSizeY
     
     
+# def compute_dx(ChipShape, ChipI, RefShape, RefI, scale=1, interp='spline'):
+#     ChipI = ChipI.reshape(ChipShape)
+#     RefI = RefI.reshape(RefShape)
+    
+#     res = []
+#     # start = time.time()
+#     for i in range(len(ChipI[:])):
+#         res.append(cv2.matchTemplate(RefI[i], ChipI[i], cv2.TM_CCOEFF_NORMED))
+#     res2 = np.array(res).mean(0)
+    
+#     res = res[0]
+#     (_, maxVal, _, maxLoc) = cv2.minMaxLoc(res)
+#     res[res<0] = 0
+#     ratio = maxVal/np.abs(res).mean()
+
+#     (_, maxVal2, _, maxLoc2) = cv2.minMaxLoc(res2)
+#     res2[res2<0] = 0
+#     ratio2 = maxVal2/np.abs(res2).mean()
+
+#     if ratio2>ratio:
+#         res = res2
+#         ratio = ratio2
+#         maxVal = maxVal2
+#         maxLoc = maxLoc2
+    
+#     dX, dY = maxLoc
+#     H, W = res.shape
+#     if (maxVal<0.1)|(dX<=W*0.2)|(dY<=H*0.2)|(dX>=W*0.8)|(dY>=H*0.8):
+#         return np.nan, np.nan, 0
+
+#     res_up = res.copy()
+
+#     if scale > 1:
+#         xstart = maxLoc[0]-3
+#         ystart = maxLoc[1]-3
+#         res_up = upscale(res[maxLoc[1]-3:maxLoc[1]+4, maxLoc[0]-3:maxLoc[0]+4], scale, type=interp)
+    
+#         (_, maxVal, _, maxLoc) = cv2.minMaxLoc(res_up)
+#         dX, dY = maxLoc
+        
+#         dX = (dX/scale) + xstart
+#         dY = (dY/scale) + ystart
+        
+#     if np.isnan([dX, dY]).any():
+#         return np.nan, np.nan, 0
+
+#     return dX, dY, ratio
+
+
 def compute_dx(ChipShape, ChipI, RefShape, RefI, scale=1, interp='spline'):
     ChipI = ChipI.reshape(ChipShape)
     RefI = RefI.reshape(RefShape)
@@ -562,22 +611,11 @@ def compute_dx(ChipShape, ChipI, RefShape, RefI, scale=1, interp='spline'):
     # start = time.time()
     for i in range(len(ChipI[:])):
         res.append(cv2.matchTemplate(RefI[i], ChipI[i], cv2.TM_CCOEFF_NORMED))
-    res2 = np.array(res).mean(0)
+    res = np.array(res).mean(0)
     
-    res = res[0]
     (_, maxVal, _, maxLoc) = cv2.minMaxLoc(res)
     res[res<0] = 0
     ratio = maxVal/np.abs(res).mean()
-
-    (_, maxVal2, _, maxLoc2) = cv2.minMaxLoc(res2)
-    res2[res2<0] = 0
-    ratio2 = maxVal2/np.abs(res2).mean()
-
-    if ratio2>ratio:
-        res = res2
-        ratio = ratio2
-        maxVal = maxVal2
-        maxLoc = maxLoc2
     
     dX, dY = maxLoc
     H, W = res.shape
@@ -831,7 +869,7 @@ def arImgDisp_u(IMG, xGrid, yGrid, ChipSizeX, ChipSizeY, SearchLimitX, SearchLim
         in_shape = xGrid.shape
         I_shape = IMG[0].shape
 
-        num_cores = mp.cpu_count()
+        num_cores = min(mp.cpu_count(), 64)
 
         chunk_inputs = [(jj, SubPixFlag, oversample, in_shape, I_shape, padx, pady)
                         for jj in range(in_shape[1])]
@@ -972,7 +1010,7 @@ def arImgDisp_s(IMG, xGrid, yGrid, ChipSizeX, ChipSizeY, SearchLimitX, SearchLim
         in_shape = xGrid.shape
         I_shape = IMG[0].shape
         
-        num_cores = mp.cpu_count()
+        num_cores = min(mp.cpu_count(), 64)
     
         chunk_inputs = [(jj, SubPixFlag, oversample, in_shape, I_shape, padx, pady)
                         for jj in range(in_shape[1])]
@@ -983,7 +1021,7 @@ def arImgDisp_s(IMG, xGrid, yGrid, ChipSizeX, ChipSizeY, SearchLimitX, SearchLim
         Dx = np.array(Dx).T
         Dy = np.array(Dy).T
         SNR = np.array(SNR).T
-        print('loop_sub', SNR[np.logical_not(np.isnan(Dx))].max(), SNR[np.logical_not(np.isnan(Dx))].mean(), SNR[np.logical_not(np.isnan(Dx))].min())
+        # print('loop_sub', SNR[np.logical_not(np.isnan(Dx))].max(), SNR[np.logical_not(np.isnan(Dx))].mean(), SNR[np.logical_not(np.isnan(Dx))].min())
         # print(Dx.shape, Dy.shape, SNR.shape, xGrid.shape)
 
     # add back 1) I1 (RefI) relative to I2 (ChipI) initial offset Dx0 and Dy0, and
