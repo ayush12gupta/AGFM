@@ -30,12 +30,10 @@ parser.add_argument('-p', '--polarization', type=str, default="vh", help="Polari
 
 args = parser.parse_args()
 
-# def execute_write(cmd, file):
-#     process = subprocess.Popen(cmd, stdout=subprocess.PIPE, shell=True)
-#     (process_output,  error) = process.communicate()
-#     file = open(file, "w")
-#     file.write(process_output)
-#     file.close()
+def to_datetime(date):
+    date = f'{date[:4]}/{date[4:6]}/{date[-2:]}'
+    date = datetime.strptime(date, '%Y/%m/%d')
+    return date
 
 def execute_write(cmd, file, file_err):
     f = open(file, "w")
@@ -67,29 +65,58 @@ def add_elements(elements, acquisitionDates, gap):
     N = len(acquisitionDates)
     id = [f'stack_{str(elements[i])}_{str(elements[i+gap])}' for i in range(N-gap)]
     master = [acquisitionDates[i] for i in range(N-gap)]
+    master_2 = master[1:]
+    master_2.append('')
+    for i in range(len(master)-1):
+        master_dt = to_datetime(master[i])
+        master_2_dt = to_datetime(master_2[i])
+        delta = (master_2_dt - master_dt).days
+        if delta>12:
+            master_2[i] = ''
+    
     slave = [acquisitionDates[i+gap] for i in range(N-gap)]
-    return id, master, slave
+    slave_2 = slave[1:]
+    slave_2.append('')
+    for i in range(len(slave)-1):
+        slave_dt = to_datetime(slave[i])
+        slave_2_dt = to_datetime(slave_2[i])
+        delta = (slave_2_dt - slave_dt).days
+        if delta>12:
+            slave_2[i] = ''
+            
+    return id, master, slave, master_2, slave_2
 
 
 def generate_data(elements, acquisitionDates, max_gap=3):
     id = []
     master = []
+    master2 = []
+    
     slave = []
+    slave2 = []
     for gap in range(1, max_gap+1):
-        idn, mastern, slaven = add_elements(elements, acquisitionDates, gap=gap)
+        idn, mastern, slaven, mastern2, slaven2 = add_elements(elements, acquisitionDates, gap=gap)
         id.extend(idn)
         master.extend(mastern)
+        master2.extend(mastern2)
+        
         slave.extend(slaven)
+        slave2.extend(slaven2)
 
-    return id, master, slave
+    return id, master, slave, master2, slave2
 
 
-def offset_tracking(config, cwd, master, slave, netCDF_out):
+def offset_tracking(config, cwd, master, slave, master2, slave2, mask):
 
     execute('cp ../testGeogrid.txt testGeogrid.txt')
     if os.path.exists(f'../../merged/SLC/{master}/{master}.slc.full')&os.path.exists(f'../../merged/SLC/{slave}/{slave}.slc.full'):
         # cmd = f'time python {cwd}/geogrid_autorift/testautoRIFT_ISCE.py -m ../../merged/SLC/{master}/{master}.slc.full -s ../../merged/SLC/{slave}/{slave}.slc.full -g ../window_location.tif -chipmax {config["chip_max"]} -chipmin {config["chip_min"]} -mpflag {str(config["num_threads"])} -config {cwd}/configs/data_config.json -ncname {netCDF_out} -vx ../window_rdr_off2vel_x_vec.tif -vy ../window_rdr_off2vel_y_vec.tif -post' #-ssm window_stable_surface_mask.tif -nc S'
-        cmd = f'time python {DIR_PATH}/geogrid_autorift/testautoRIFT_ISCE2.py -m ../../merged/SLC/{master}/{master}.slc.full -s ../../merged/SLC/{slave}/{slave}.slc.full -g ../window_location.tif -vx ../window_rdr_off2vel_x_vec.tif -vy ../window_rdr_off2vel_y_vec.tif -mpflag {str(config["num_threads"])} -config {cwd}/configs/data_config.json -post'
+        if (master2=='')|(slave2==''):
+            cmd = f'time python {DIR_PATH}/geogrid_autorift/testautoRIFT_ISCE2.py -m ../../merged/SLC/{master}/{master}.slc.full -s ../../merged/SLC/{slave}/{slave}.slc.full -g ../window_location.tif -vx ../window_rdr_off2vel_x_vec.tif -vy ../window_rdr_off2vel_y_vec.tif -mpflag {str(config["num_threads"])} -config {cwd}/configs/data_config.json -post --mask --chipmin 240 --chipmax 960'
+        else:
+            cmd = f'time python {DIR_PATH}/geogrid_autorift/testautoRIFT_ISCE2.py -m ../../merged/SLC/{master}/{master}.slc.full,../../merged/SLC/{master2}/{master2}.slc.full -s ../../merged/SLC/{slave}/{slave}.slc.full,../../merged/SLC/{slave2}/{slave2}.slc.full 
+                    -g ../window_location.tif -vx ../window_rdr_off2vel_x_vec.tif -vy ../window_rdr_off2vel_y_vec.tif -mpflag {str(config["num_threads"])} -config {cwd}/configs/data_config.json -post --mask --chipmin 240 --chipmax 960'
+        
         print('PO Command', cmd)
         execute(cmd)
     else:
@@ -98,7 +125,7 @@ def offset_tracking(config, cwd, master, slave, netCDF_out):
     print("Offset Tracking completed")
 
 
-def offset_compute(csv_file, config, cwd):
+def offset_compute(csv_file, config, cwd, mask):
 
     # execute('rm -rf ../coreg_secondarys ../ESD ../misreg')
     data_pairs = pd.read_csv(csv_file, header=0)
@@ -109,7 +136,8 @@ def offset_compute(csv_file, config, cwd):
         index = data_pairs[data_pairs['Id']==row['Id']].index[0]
         id  = row['Id']
         print(id)
-        master, slave = row['Master'], row['Slave']
+        
+        master, slave, master2, slave2 = row['Master'], row['Slave'], row['Master2'], row['Slave2']
         # Skip offset tracking for the file which have already been computed
         if os.path.exists(f'./{id}/velocity.tif'):
             data_pairs = pd.read_csv(csv_file, header=0)
@@ -122,9 +150,10 @@ def offset_compute(csv_file, config, cwd):
         
         # If coregistered image exists
         if os.path.exists(f'../../merged/SLC/{slave}/{slave}.slc.full'):
-            offset_tracking(config, cwd, str(master), str(slave), id)
+            offset_tracking(config, cwd, str(master), str(slave), str(master2), str(slave2), id, mask)
             data_pairs.at[index,'Status'] = 1
         data_pairs = pd.read_csv(os.path.join('../', csv_file), header=0)
+        
         if os.path.exists('velocity.tif'):
             data_pairs.at[index,'Status'] = 1
         else:
@@ -162,8 +191,6 @@ def velocity_postprocess(csv_file, shpfile):
         print(os.listdir('./'), os.path.exists(f'./velocity.tif'))
         # If coregistered image exists
         if os.path.exists(f'./velocity.tif'):
-            # offset_tracking(config, cwd, str(master), str(slave), id)
-            # id1, id2 = id.split('_')[1:]
             date_m = str(master)
             date_s = str(slave)
             date_m = f'{date_m[:4]}/{date_m[4:6]}/{date_m[-2:]}'
@@ -314,13 +341,11 @@ def main():
     num_images = len(urls)
     
     for url in urls:
-        # print(url.split('_')[5])
         print(args.data_path+url+'.zip')
         if not os.path.exists(args.data_path+url+'.zip'):
             download_data(config_isce['ASF_user'], config_isce['ASF_password'], url, args.data_path, config['Orbit_dir'])
 
     # Removing the extra SAFE files
-    # safe_files = [url.split('/')[-1] for url in urls]
     safe_files = [url+'.zip' for url in urls]
     for fn in os.listdir(args.data_path):
         if fn not in safe_files:
@@ -336,8 +361,9 @@ def main():
         acquisitionDates = [url.split('_')[5][:8] for url in urls]
         N = len(acquisitionDates)
         elements = [i for i in range(N)]
-        id, master, slave = generate_data(elements, acquisitionDates, VELOCITY_CORR_GAP)
-        df = pd.DataFrame({'Id':id, 'Master':master, 'Slave':slave, 'Status': [0]*len(id), 'ROI':[str(f"[{bbox.replace(' ', ', ')}]")]*len(id)})
+        id, master, slave, master2, slave2 = generate_data(elements, acquisitionDates, VELOCITY_CORR_GAP)
+        df = pd.DataFrame({'Id':id, 'Master':master, 'Slave':slave, 'Master2':master2, 'Slave2':slave2
+                           , 'Status': [0]*len(id), 'ROI':[str(f"[{bbox.replace(' ', ', ')}]")]*len(id)})
         df.to_csv('image_pairs.csv')
 
     if args.mode == 'download':
@@ -384,9 +410,6 @@ def main():
             # execute_write(f'bash ./{file}',f'{log_folder}/{file.split("/")[-1]}.txt')
             try:
                 num = int(file.split('/')[-1].split('_')[1])
-                # if num==11:
-                #     time.sleep(60*30)
-                    
                 execute_write(f'bash ./{file}', f'{log_folder}/{file.split("/")[-1]}.txt', f'{log_folder}/{file.split("/")[-1]}_error.txt')
                 while process_check_running(num):
                     time.sleep(60)
@@ -438,7 +461,7 @@ def main():
         print("./window_location.tif  ---> Already exists")
     
     print("Starting Offset Tracking")
-    offset_compute(pair_fn, config, cwd)
+    offset_compute(pair_fn, config, cwd, args.shpfile)
 
     if args.mode == 'offset':
         print("Complete. Exiting ...... offset")

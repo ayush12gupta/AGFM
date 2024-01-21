@@ -20,15 +20,22 @@ class glacier_autoRIFT:
         Do the pre processing using wallis filter (10 min vs 15 min in Matlab).
         '''
         
-        self.zeroMask = (self.IMG[0] == 0)        
+        self.zeroMask = (self.I2[0] == 0)|(self.I2[0] == 0)        
         kernel = np.ones((self.WallisFilterWidth,self.WallisFilterWidth), dtype=np.float32)
         
-        for i in range(len(self.IMG)):
-            m = cv2.filter2D(self.IMG[i],-1,kernel,borderType=cv2.BORDER_CONSTANT)/np.sum(kernel)
-            m2 = (self.IMG[i])**2
+        for i in range(len(self.I1)):
+            m = cv2.filter2D(self.I1[i],-1,kernel,borderType=cv2.BORDER_CONSTANT)/np.sum(kernel)
+            m2 = (self.I1[i])**2
             m2 = cv2.filter2D(m2,-1,kernel,borderType=cv2.BORDER_CONSTANT)/np.sum(kernel)
             s = np.sqrt(m2 - m**2) * np.sqrt(np.sum(kernel)/(np.sum(kernel)-1.0))
-            self.IMG[i] = (self.IMG[i] - m) / s    
+            self.I1[i] = (self.I1[i] - m) / s  
+        
+        for i in range(len(self.I2)):
+            m = cv2.filter2D(self.I2[i],-1,kernel,borderType=cv2.BORDER_CONSTANT)/np.sum(kernel)
+            m2 = (self.I2[i])**2
+            m2 = cv2.filter2D(m2,-1,kernel,borderType=cv2.BORDER_CONSTANT)/np.sum(kernel)
+            s = np.sqrt(m2 - m**2) * np.sqrt(np.sum(kernel)/(np.sum(kernel)-1.0))
+            self.I2[i] = (self.I2[i] - m) / s    
     
     
 #    ####   obsolete definition of "preprocess_filt_hps"
@@ -62,8 +69,9 @@ class glacier_autoRIFT:
         kernel[int((self.WallisFilterWidth-1)/2),int((self.WallisFilterWidth-1)/2)] = kernel.size - 1
         kernel = kernel / kernel.size
 
-        for i in range(len(self.IMG)):
-            self.IMG[i] = cv2.filter2D(self.IMG[i],-1,kernel,borderType=cv2.BORDER_CONSTANT)
+        for i in range(len(self.I1)):
+            self.I1[i] = cv2.filter2D(self.I1[i],-1,kernel,borderType=cv2.BORDER_CONSTANT)
+            self.I2[i] = cv2.filter2D(self.I2[i],-1,kernel,borderType=cv2.BORDER_CONSTANT)
 
     
     def preprocess_db(self):
@@ -71,8 +79,9 @@ class glacier_autoRIFT:
         Do the pre processing using db scale (4 min).
         '''
 
-        self.zeroMask = (self.IMG[0] == 0)
-        self.IMG = 20.0 * np.log10(self.IMG)
+        self.zeroMask = (self.I1[0] == 0)|(self.I2[0] == 0)
+        self.I1 = 20.0 * np.log10(self.I1)
+        self.I2 = 20.0 * np.log10(self.I2)
 
         
     def preprocess_filt_sob(self):
@@ -87,8 +96,9 @@ class glacier_autoRIFT:
         
         kernel = kernelx + kernely
         
-        for i in range(len(self.IMG)):
-            self.IMG[i] = cv2.filter2D(self.IMG[i],-1,kernel,borderType=cv2.BORDER_CONSTANT)
+        for i in range(len(self.I1)):
+            self.I1[i] = cv2.filter2D(self.I1[i],-1,kernel,borderType=cv2.BORDER_CONSTANT)
+            self.I2[i] = cv2.filter2D(self.I2[i],-1,kernel,borderType=cv2.BORDER_CONSTANT)
     
 
     def preprocess_filt_lap(self):
@@ -96,45 +106,67 @@ class glacier_autoRIFT:
         Do the pre processing using Laplacian filter (2.5 min / 4 min).
         '''
 
-        self.zeroMask = (self.IMG[0] == 0)
+        self.zeroMask = (self.I1[0] == 0)|(self.I2[0] == 0)
 
-        for i in range(len(self.IMG)):
-            self.IMG[i] = 20.0 * np.log10(self.IMG[i])
-            self.IMG[i] = cv2.Laplacian(self.IMG[i],-1,ksize=self.WallisFilterWidth,borderType=cv2.BORDER_CONSTANT)
+        for i in range(len(self.I1)):
+            self.I1[i] = 20.0 * np.log10(self.I1[i])
+            self.I1[i] = cv2.Laplacian(self.I1[i],-1,ksize=self.WallisFilterWidth,borderType=cv2.BORDER_CONSTANT)
+            
+        for i in range(len(self.I2)):
+            self.I2[i] = 20.0 * np.log10(self.I2[i])
+            self.I2[i] = cv2.Laplacian(self.I2[i],-1,ksize=self.WallisFilterWidth,borderType=cv2.BORDER_CONSTANT)
            
     
     def uniform_data_type(self):
         
         if self.DataType == 0:
             
-            for i in range(len(self.IMG)):
+            for i in range(len(self.I1)):
                 if self.zeroMask is not None:
-        #            validData = np.logical_not(np.isnan(self.I1))
-                    validData = np.isfinite(self.IMG[i])
-                    temp = self.IMG[i][validData]
+                    validData = np.isfinite(self.I1[i])
+                    temp = self.I1[i][validData]
                 else:
-                    temp = self.IMG[i]
+                    temp = self.I1[i]
                     
                 S1 = np.std(temp)*np.sqrt(temp.size/(temp.size-1.0))
                 M1 = np.mean(temp)
-                self.IMG[i] = (self.IMG[i] - (M1 - 3*S1)) / (6*S1) * (2**8 - 0)
-                self.IMG[i] = np.round(np.clip(self.IMG[i], 0, 255)).astype(np.uint8)
+                self.I1[i] = (self.I1[i] - (M1 - 3*S1)) / (6*S1) * (2**8 - 0)
+                self.I1[i] = np.round(np.clip(self.I1[i], 0, 255)).astype(np.uint8)
+        
+            for i in range(len(self.I2)):
+                if self.zeroMask is not None:
+        #            validData = np.logical_not(np.isnan(self.I1))
+                    validData = np.isfinite(self.I2[i])
+                    temp = self.I2[i][validData]
+                else:
+                    temp = self.I2[i]
+                    
+                S1 = np.std(temp)*np.sqrt(temp.size/(temp.size-1.0))
+                M1 = np.mean(temp)
+                self.I2[i] = (self.I2[i] - (M1 - 3*S1)) / (6*S1) * (2**8 - 0)
+                self.I2[i] = np.round(np.clip(self.I2[i], 0, 255)).astype(np.uint8)
             
             if self.zeroMask is not None:
-                self.IMG[:,self.zeroMask] = 0
+                # self.IMG[:,self.zeroMask] = 0
+                self.I1[:,self.zeroMask] = 0
+                self.I2[:,self.zeroMask] = 0
                 self.zeroMask = None
         
         elif self.DataType == 1:
             
             if self.zeroMask is not None:
-                self.IMG[np.logical_not(np.isfinite(self.IMG))] = 0
-                # self.I1[np.logical_not(np.isfinite(self.I1))] = 0
-                # self.I2[np.logical_not(np.isfinite(self.I2))] = 0
+                # self.IMG[np.logical_not(np.isfinite(self.IMG))] = 0
+                self.I1[np.logical_not(np.isfinite(self.I1))] = 0
+                self.I2[np.logical_not(np.isfinite(self.I2))] = 0
             
-            self.IMG = self.IMG.astype(np.float32)
+            # self.IMG = self.IMG.astype(np.float32)
+            self.I1 = self.I1.astype(np.float32)
+            self.I2 = self.I2.astype(np.float32)
             
             if self.zeroMask is not None:
-                self.IMG[:,self.zeroMask] = 0
+                # self.IMG[:,self.zeroMask] = 0
+                self.I1[:,self.zeroMask] = 0
+                self.I2[:,self.zeroMask] = 0
                 self.zeroMask = None
 
         else:
@@ -306,10 +338,10 @@ class glacier_autoRIFT:
             else:
                 overSampleRatio = self.OverSampleRatio
 
-            if self.IMG.dtype == np.uint8:
-                DxC, DyC, SNR_C = arImgDisp_u(self.IMG, xGrid0C.copy(), yGrid0C.copy(), ChipSizeXC, ChipSizeYC, SearchLimitX0C, SearchLimitY0C, self.pad_img, SubPixFlag, overSampleRatio, self.MultiThread)
-            elif self.IMG.dtype == np.float32:
-                DxC, DyC, SNR_C = arImgDisp_s(self.IMG, xGrid0C.copy(), yGrid0C.copy(), ChipSizeXC, ChipSizeYC, SearchLimitX0C, SearchLimitY0C, self.pad_img, SubPixFlag, overSampleRatio, self.MultiThread)
+            if self.I1.dtype == np.uint8:
+                DxC, DyC, SNR_C = arImgDisp_u(self.I1, self.I2, xGrid0C.copy(), yGrid0C.copy(), ChipSizeXC, ChipSizeYC, SearchLimitX0C, SearchLimitY0C, self.pad_img, SubPixFlag, overSampleRatio, self.MultiThread)
+            elif self.I1.dtype == np.float32:
+                DxC, DyC, SNR_C = arImgDisp_s(self.I1, self.I2, xGrid0C.copy(), yGrid0C.copy(), ChipSizeXC, ChipSizeYC, SearchLimitX0C, SearchLimitY0C, self.pad_img, SubPixFlag, overSampleRatio, self.MultiThread)
             else:
                 sys.exit('invalid data type for the image pair which must be unsigned integer 8 or 32-bit float')
             
@@ -350,13 +382,12 @@ class glacier_autoRIFT:
             SearchLimitY0 = np.float32(np.round(SearchLimitY0*self.ScaleChipSizeY))
 
             print("Starting Fine Search")
-            if self.IMG.dtype == np.uint8:
-                DxF, DyF, SNR_F = arImgDisp_u(self.IMG, xGrid0.copy(), yGrid0.copy(), ChipSizeXF, ChipSizeYF, SearchLimitX0, SearchLimitY0, self.pad_img, SubPixFlag, overSampleRatio, self.MultiThread)
-            elif self.IMG.dtype == np.float32:
-                DxF, DyF, SNR_F = arImgDisp_s(self.IMG, xGrid0.copy(), yGrid0.copy(), ChipSizeXF, ChipSizeYF, SearchLimitX0, SearchLimitY0, self.pad_img, SubPixFlag, overSampleRatio, self.MultiThread)
+            if self.I1.dtype == np.uint8:
+                DxF, DyF, SNR_F = arImgDisp_u(self.I1, self.I2, xGrid0.copy(), yGrid0.copy(), ChipSizeXF, ChipSizeYF, SearchLimitX0, SearchLimitY0, self.pad_img, SubPixFlag, overSampleRatio, self.MultiThread)
+            elif self.I1.dtype == np.float32:
+                DxF, DyF, SNR_F = arImgDisp_s(self.I1, self.I2, xGrid0.copy(), yGrid0.copy(), ChipSizeXF, ChipSizeYF, SearchLimitX0, SearchLimitY0, self.pad_img, SubPixFlag, overSampleRatio, self.MultiThread)
             else:
                 sys.exit('invalid data type for the image pair which must be unsigned integer 8 or 32-bit float')
-            
             
             M0 = DispFiltF.filtDisp(DxF.copy(), DyF.copy(), SearchLimitX0.copy(), SearchLimitY0.copy(), np.logical_not(np.isnan(DxF)), overSampleRatio)
             DxF[np.logical_not(M0)] = np.nan
@@ -497,7 +528,8 @@ class glacier_autoRIFT:
         super(glacier_autoRIFT, self).__init__()
         
         ##Input related parameters
-        self.IMG = None
+        self.I1 = None
+        self.I2 = None
         self.xGrid = None
         self.yGrid = None
         self.mask = None
@@ -544,8 +576,9 @@ class glacier_autoRIFT:
 
 var_dict = {}
 
-def initializer(IMG, xGrid, yGrid, SearchLimitX, SearchLimitY, ChipSizeX, ChipSizeY):
-    var_dict['IMG'] = IMG
+def initializer(I1, I2, xGrid, yGrid, SearchLimitX, SearchLimitY, ChipSizeX, ChipSizeY):
+    var_dict['I1'] = I1
+    var_dict['I2'] = I2
     var_dict['xGrid'] = xGrid
     var_dict['yGrid'] = yGrid
     var_dict['SearchLimitX'] = SearchLimitX
@@ -665,12 +698,12 @@ def unpacking_column_u(tup):
         ChipRangeX = slice(int(-clx + padX + xGrid[ii,jj]) , int(clx + padX + xGrid[ii,jj]))
         cly = np.floor(var_dict['ChipSizeY'][ii,jj]/2)
         ChipRangeY = slice(int(-cly + padY + yGrid[ii,jj]) , int(cly + padY + yGrid[ii,jj]))
-        ChipI = var_dict['IMG'][1:,ChipRangeY,ChipRangeX] # Convert Datatype
+        ChipI = var_dict['I2'][:,ChipRangeY,ChipRangeX] # Convert Datatype
         ChipShape = ChipI.shape
         
         SearchRangeX = slice(int(-clx - var_dict['SearchLimitX'][ii,jj] + padX + xGrid[ii,jj]) , int(clx + padX + var_dict['SearchLimitX'][ii,jj] - 1 + xGrid[ii,jj]))
         SearchRangeY = slice(int(-cly - var_dict['SearchLimitY'][ii,jj] + padY + yGrid[ii,jj]) , int(cly + padY + var_dict['SearchLimitY'][ii,jj] - 1 + yGrid[ii,jj]))
-        RefI = var_dict['IMG'][:-1,SearchRangeY,SearchRangeX]  # Convert Datatype
+        RefI = var_dict['I1'][:,SearchRangeY,SearchRangeX]  # Convert Datatype
         RefShape = RefI.shape
         
         minChipI = np.min(ChipI)
@@ -721,12 +754,12 @@ def unpacking_column_s(tup):
         ChipRangeX = slice(int(-clx + padX + xGrid[ii,jj]) , int(clx + padX + xGrid[ii,jj]))
         cly = np.floor(var_dict['ChipSizeY'][ii,jj]/2)
         ChipRangeY = slice(int(-cly + padY + yGrid[ii,jj]) , int(cly + padY + yGrid[ii,jj]))
-        ChipI = var_dict['IMG'][1:,ChipRangeY,ChipRangeX]
+        ChipI = var_dict['I2'][:,ChipRangeY,ChipRangeX]
         ChipShape = ChipI.shape
                 
         SearchRangeX = slice(int(-clx - var_dict['SearchLimitX'][ii,jj] + padX + xGrid[ii,jj]) , int(clx + padX + var_dict['SearchLimitX'][ii,jj] - 1 + xGrid[ii,jj]))
         SearchRangeY = slice(int(-cly - var_dict['SearchLimitY'][ii,jj] + padY + yGrid[ii,jj]) , int(cly + padY + var_dict['SearchLimitY'][ii,jj] - 1 + yGrid[ii,jj]))
-        RefI = var_dict['IMG'][:-1,SearchRangeY,SearchRangeX]
+        RefI = var_dict['I1'][:,SearchRangeY,SearchRangeX]
         RefShape = RefI.shape
         
         minChipI = np.min(ChipI)
@@ -757,7 +790,7 @@ def unpacking_column_s(tup):
 
 
 
-def arImgDisp_u(IMG, xGrid, yGrid, ChipSizeX, ChipSizeY, SearchLimitX, SearchLimitY, pad_sz, SubPixFlag, oversample, MultiThread):
+def arImgDisp_u(I1, I2, xGrid, yGrid, ChipSizeX, ChipSizeY, SearchLimitX, SearchLimitY, pad_sz, SubPixFlag, oversample, MultiThread):
 
     import numpy as np
     import multiprocessing as mp
@@ -833,12 +866,12 @@ def arImgDisp_u(IMG, xGrid, yGrid, ChipSizeX, ChipSizeY, SearchLimitX, SearchLim
                 ChipRangeX = slice(int(-clx + padx + xGrid[ii,jj]) , int(clx + padx + xGrid[ii,jj]))
                 cly = np.floor(ChipSizeY[ii,jj]/2)
                 ChipRangeY = slice(int(-cly + pady + yGrid[ii,jj]) , int(cly + pady + yGrid[ii,jj]))
-                ChipI = IMG[1:,ChipRangeY,ChipRangeX]
+                ChipI = I2[:,ChipRangeY,ChipRangeX]
                 ChipShape = ChipI.shape
 
                 SearchRangeX = slice(int(-clx - SearchLimitX[ii,jj] + padx + xGrid[ii,jj]) , int(clx + padx + SearchLimitX[ii,jj] - 1 + xGrid[ii,jj]))
                 SearchRangeY = slice(int(-cly - SearchLimitY[ii,jj] + pady + yGrid[ii,jj]) , int(cly + pady + SearchLimitY[ii,jj] - 1 + yGrid[ii,jj]))
-                RefI = IMG[:-1,SearchRangeY,SearchRangeX]
+                RefI = I1[:,SearchRangeY,SearchRangeX]
                 RefShape = RefI.shape
                 
                 minChipI = np.min(ChipI)
@@ -867,20 +900,19 @@ def arImgDisp_u(IMG, xGrid, yGrid, ChipSizeX, ChipSizeY, SearchLimitX, SearchLim
     else:
         #   Preparation for parallel
         in_shape = xGrid.shape
-        I_shape = IMG[0].shape
+        I_shape = I1[0].shape
 
         num_cores = min(mp.cpu_count(), 64)
 
         chunk_inputs = [(jj, SubPixFlag, oversample, in_shape, I_shape, padx, pady)
                         for jj in range(in_shape[1])]
 
-        with mp.Pool(initializer=initializer, initargs=(IMG, xGrid, yGrid, SearchLimitX, SearchLimitY, ChipSizeX, ChipSizeY), processes=num_cores) as pool:
+        with mp.Pool(initializer=initializer, initargs=(I1, I2, xGrid, yGrid, SearchLimitX, SearchLimitY, ChipSizeX, ChipSizeY), processes=num_cores) as pool:
             Dx, Dy, SNR = zip(*pool.map(unpacking_column_u, chunk_inputs))
 
         Dx = np.array(Dx).T
         Dy = np.array(Dy).T
         SNR = np.array(SNR).T
-
 
     # add back 1) I1 (RefI) relative to I2 (ChipI) initial offset Dx0 and Dy0, and
     #          2) RefI relative to ChipI has a left/top boundary offset of -SearchLimitX and -SearchLimitY
@@ -898,7 +930,7 @@ def arImgDisp_u(IMG, xGrid, yGrid, ChipSizeX, ChipSizeY, SearchLimitX, SearchLim
 
 
 
-def arImgDisp_s(IMG, xGrid, yGrid, ChipSizeX, ChipSizeY, SearchLimitX, SearchLimitY, pad_sz, SubPixFlag, oversample, MultiThread):
+def arImgDisp_s(I1, I2, xGrid, yGrid, ChipSizeX, ChipSizeY, SearchLimitX, SearchLimitY, pad_sz, SubPixFlag, oversample, MultiThread):
     
     import numpy as np
     import multiprocessing as mp
@@ -974,12 +1006,12 @@ def arImgDisp_s(IMG, xGrid, yGrid, ChipSizeX, ChipSizeY, SearchLimitX, SearchLim
                 ChipRangeX = slice(int(-clx + padx + xGrid[ii,jj]) , int(clx + padx + xGrid[ii,jj]))
                 cly = np.floor(ChipSizeY[ii,jj]/2)
                 ChipRangeY = slice(int(-cly + pady + yGrid[ii,jj]) , int(cly + pady + yGrid[ii,jj]))
-                ChipI = IMG[1:,ChipRangeY,ChipRangeX]
+                ChipI = I2[:,ChipRangeY,ChipRangeX]
                 ChipShape = ChipI.shape
                 
                 SearchRangeX = slice(int(-clx - SearchLimitX[ii,jj] + padx + xGrid[ii,jj]) , int(clx + padx + SearchLimitX[ii,jj] - 1 + xGrid[ii,jj]))
                 SearchRangeY = slice(int(-cly - SearchLimitY[ii,jj] + pady + yGrid[ii,jj]) , int(cly + pady + SearchLimitY[ii,jj] - 1 + yGrid[ii,jj]))
-                RefI = IMG[:-1,SearchRangeY,SearchRangeX]
+                RefI = I1[:,SearchRangeY,SearchRangeX]
                 RefShape = RefI.shape
                 
                 minChipI = np.min(ChipI)
@@ -1008,14 +1040,14 @@ def arImgDisp_s(IMG, xGrid, yGrid, ChipSizeX, ChipSizeY, SearchLimitX, SearchLim
     else:
         #   Preparation for parallel
         in_shape = xGrid.shape
-        I_shape = IMG[0].shape
+        I_shape = I1[0].shape
         
         num_cores = min(mp.cpu_count(), 64)
     
         chunk_inputs = [(jj, SubPixFlag, oversample, in_shape, I_shape, padx, pady)
                         for jj in range(in_shape[1])]
             
-        with mp.Pool(initializer=initializer, initargs=(IMG, xGrid, yGrid, SearchLimitX, SearchLimitY, ChipSizeX, ChipSizeY), processes=num_cores) as pool:
+        with mp.Pool(initializer=initializer, initargs=(I1, I2, xGrid, yGrid, SearchLimitX, SearchLimitY, ChipSizeX, ChipSizeY), processes=num_cores) as pool:
             Dx, Dy, SNR = zip(*pool.map(unpacking_column_s, chunk_inputs))
                 
         Dx = np.array(Dx).T
