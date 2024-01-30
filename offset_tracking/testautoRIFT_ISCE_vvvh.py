@@ -56,9 +56,9 @@ def cmdLineParse():
     #         help='Input slave image file name (in ISCE format and radar coordinates) or Input slave image file name (in GeoTIFF format and Cartesian coordinates)')
     parser.add_argument('-g', '--input_g', dest='grid_location', type=str, required=False,
             help='Input pixel indices file name')
-    parser.add_argument('-m', '--master_imgs', dest='master_imgs', type=list_of_strings, required=True,
+    parser.add_argument('-i', '--slc_imgs', dest='slc_imgs', type=list_of_strings, required=True,
             help='Input master image file name (in ISCE format and radar coordinates) or Input master image file name (in GeoTIFF format and Cartesian coordinates)')
-    parser.add_argument('-s', '--slave_imgs', dest='slave_imgs', type=list_of_strings, required=True,
+    parser.add_argument('-i2', '--slc_imgs2', dest='slc_imgs2', type=list_of_strings, required=True,
             help='Input master image file name (in ISCE format and radar coordinates) or Input master image file name (in GeoTIFF format and Cartesian coordinates)')
     parser.add_argument('--mask', dest='mask', type=str, required=False, default=None,
             help='Glacier region mask file name')
@@ -110,7 +110,7 @@ def loadProduct(filename):
     IMG = IML.mmapFromISCE(filename, logging)
     img = IMG.bands[0]
 
-    return img
+    return np.absolute(img)
     
 
 def loadProductOptical(file_m, file_s):
@@ -141,7 +141,7 @@ def loadProductOptical(file_m, file_s):
     return I1, I2
 
 
-def runAutorift(I1, I2, xGrid, yGrid, SRx0, SRy0, CSMINx0, CSMINy0, CSMAXx0, CSMAXy0, noDataMask, mask, optflag,
+def runAutorift(IMG, xGrid, yGrid, SRx0, SRy0, CSMINx0, CSMINy0, CSMAXx0, CSMAXy0, noDataMask, mask, optflag,
                 nodata, mpflag, chip_max, chip_min, geogrid_run_info=None):
     '''
     Wire and run geogrid.
@@ -163,12 +163,10 @@ def runAutorift(I1, I2, xGrid, yGrid, SRx0, SRy0, CSMINx0, CSMINy0, CSMAXx0, CSM
     obj.MultiThread = mpflag
 
     # take the amplitude only for the radar images
-    if optflag == 0:
-        I1 = np.absolute(I1)
-        I2 = np.absolute(I2)
+    # if optflag == 0:
+    #     IMG = np.absolute(IMG)
 
-    obj.I1 = I1
-    obj.I2 = I2
+    obj.IMG = IMG
 
     # create the grid if it does not exist
     if xGrid is None:
@@ -189,7 +187,7 @@ def runAutorift(I1, I2, xGrid, yGrid, SRx0, SRy0, CSMINx0, CSMINy0, CSMAXx0, CSM
     for ii in range(obj.xGrid.shape[0]):
         for jj in range(obj.xGrid.shape[1]):
             if (obj.yGrid[ii,jj] != nodata)&(obj.xGrid[ii,jj] != nodata):
-                if (obj.I1[:,obj.yGrid[ii,jj]-1,obj.xGrid[ii,jj]-1]==0).any()|(obj.I2[:,obj.yGrid[ii,jj]-1,obj.xGrid[ii,jj]-1]==0).any():
+                if (obj.IMG[:,obj.yGrid[ii,jj]-1,obj.xGrid[ii,jj]-1]==0).any():
                     noDataMask[ii,jj] = True
 
     ######### mask out nodata to skip the offset searching using the nodata mask (by setting SearchLimit to be 0)
@@ -254,7 +252,7 @@ def runAutorift(I1, I2, xGrid, yGrid, SRx0, SRy0, CSMINx0, CSMINy0, CSMAXx0, CSM
     obj.ScaleChipSizeY = 1 #ChipSizeX0_PIX_azm/ChipSizeX0_PIX_grd
     obj.ChipSizeMaxX = (chip_max / chipsizex0) * ChipSizeX0_PIX_grd
     obj.ChipSizeMinX = (chip_min / chipsizex0) * ChipSizeX0_PIX_grd
-    print('!!! test', obj.ChipSizeMinX, obj.ChipSizeMaxX, obj.ScaleChipSizeY, obj.I1.dtype)
+    print('!!! test', obj.ChipSizeMinX, obj.ChipSizeMaxX, obj.ScaleChipSizeY, obj.IMG.dtype)
 
     # replace the nodata value with zero
     obj.xGrid[noDataMask] = 0
@@ -280,8 +278,7 @@ def runAutorift(I1, I2, xGrid, yGrid, SRx0, SRy0, CSMINx0, CSMINy0, CSMAXx0, CSM
     t1 = time.time()
     obj.DataType = 1
     obj.uniform_data_type()
-    obj.I1 = np.lib.pad(obj.I1,((0, 0), (obj.pad_img,obj.pad_img),(obj.pad_img,obj.pad_img)),'constant')
-    obj.I2 = np.lib.pad(obj.I2,((0, 0), (obj.pad_img,obj.pad_img),(obj.pad_img,obj.pad_img)),'constant')
+    obj.IMG = np.lib.pad(obj.IMG,((0, 0), (obj.pad_img,obj.pad_img),(obj.pad_img,obj.pad_img)),'constant')
     print("Uniform Data Type Done!!!")
     print(time.time()-t1)
 
@@ -299,6 +296,7 @@ def runAutorift(I1, I2, xGrid, yGrid, SRx0, SRy0, CSMINx0, CSMINy0, CSMAXx0, CSM
             obj.OverSampleRatio = {obj.ChipSize0X:16,obj.ChipSize0X*2:32,obj.ChipSize0X*4:64,obj.ChipSize0X*8:64}
         else:
             obj.OverSampleRatio = {obj.ChipSize0X:32,obj.ChipSize0X*2:64,obj.ChipSize0X*4:128,obj.ChipSize0X*8:128}
+
     
     ########## run Autorift
     t1 = time.time()
@@ -321,14 +319,14 @@ def main():
     '''
     inps = cmdLineParse()
     
-    generateAutoriftProduct(master_imgs=inps.master_imgs, slave_imgs=inps.slave_imgs, grid_location=inps.grid_location,
+    generateAutoriftProduct(slc_imgs=inps.slc_imgs, slc_imgs2=inps.slc_imgs2, grid_location=inps.grid_location,
                             search_range=inps.search_range,chip_size_min=inps.chip_size_min,
                             chip_size_max=inps.chip_size_max,offset2vx=inps.offset2vx, offset2vy=inps.offset2vy,
                             stable_surface_mask=inps.stable_surface_mask, optical_flag=inps.optical_flag,mask_region=inps.mask,
                             nc_sensor=inps.nc_sensor, mpflag=inps.mpflag, ncname=inps.ncname, post_config=inps.post_config, chip_min=inps.chip_min, chip_max=inps.chip_max, do_post=inps.post)
 
 
-def generateAutoriftProduct(master_imgs, slave_imgs, grid_location, search_range, chip_size_min, chip_size_max,
+def generateAutoriftProduct(slc_imgs, slc_imgs2, grid_location, search_range, chip_size_min, chip_size_max,
                             offset2vx, offset2vy, stable_surface_mask, optical_flag, mask_region, nc_sensor, mpflag, ncname, post_config,chip_min,chip_max,do_post,
                             geogrid_run_info=None):
 
@@ -341,17 +339,19 @@ def generateAutoriftProduct(master_imgs, slave_imgs, grid_location, search_range
     from components.contrib.geo_autoRIFT.autoRIFT import __version__ as version
     #  from autoRIFT import __version__ as version
 
-    data_m = []
-    data_s = []
+    data_all = []
     if optical_flag == 1:
-        data_m, data_s = loadProductOptical(master_imgs[0], slave_imgs[0])
+        data_m, data_s = loadProductOptical(slc_imgs[0], slc_imgs[1])
+        data_all.append(data_m)
+        data_all.append(data_s)
     else:
-        for i in range(len(master_imgs)):
-            data_m.append(loadProduct(master_imgs[i]))
-            data_s.append(loadProduct(slave_imgs[i]))
+        for i in range(len(slc_imgs)):
+            data_vv = loadProduct(slc_imgs[i])
+            data_vh = loadProduct(slc_imgs2[i])
+            factor = data_vv[data_vv!=0].mean()/data_vh[data_vh!=0].mean()
+            data_all.append((data_vv + (factor*data_vh))/2)
 
-    data_m = np.array(data_m)
-    data_s = np.array(data_s)
+    data_all = np.array(data_all)
 
     xGrid = None
     yGrid = None
@@ -434,7 +434,7 @@ def generateAutoriftProduct(master_imgs, slave_imgs, grid_location, search_range
         Dx, Dy, snr, InterpMask, ChipSizeX, GridSpacingX, ScaleChipSizeY, SearchLimitX, SearchLimitY, origSize, noDataMask = no.netCDF_read_intermediate(intermediate_nc_file)
     else:
         Dx, Dy, snr, InterpMask, ChipSizeX, GridSpacingX, ScaleChipSizeY, SearchLimitX, SearchLimitY, origSize, noDataMask = runAutorift(
-            data_m, data_s, xGrid, yGrid, SRx0, SRy0, CSMINx0, CSMINy0, CSMAXx0, CSMAXy0, noDataMask, mask,
+            data_all, xGrid, yGrid, SRx0, SRy0, CSMINx0, CSMINy0, CSMAXx0, CSMAXy0, noDataMask, mask,
             optical_flag, nodata, mpflag, chip_max, chip_min, geogrid_run_info=geogrid_run_info,
         )
         if nc_sensor is not None:

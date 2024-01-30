@@ -661,7 +661,7 @@ def compute_dx(ChipShape, ChipI, RefShape, RefI, scale=1, interp='spline'):
         xstart = maxLoc[0]-3
         ystart = maxLoc[1]-3
         res_up = upscale(res[maxLoc[1]-3:maxLoc[1]+4, maxLoc[0]-3:maxLoc[0]+4], scale, type=interp)
-    
+
         (_, maxVal, _, maxLoc) = cv2.minMaxLoc(res_up)
         dX, dY = maxLoc
         
@@ -1000,7 +1000,7 @@ def arImgDisp_s(I1, I2, xGrid, yGrid, ChipSizeX, ChipSizeY, SearchLimitX, Search
             for ii in range(xGrid.shape[0]):
                 if (SearchLimitX[ii,jj] == 0) & (SearchLimitY[ii,jj] == 0):
                     continue
-            
+                
                 # remember motion terms Dx and Dy correspond to I1 relative to I2 (reference)
                 clx = np.floor(ChipSizeX[ii,jj]/2)
                 ChipRangeX = slice(int(-clx + padx + xGrid[ii,jj]) , int(clx + padx + xGrid[ii,jj]))
@@ -1034,7 +1034,7 @@ def arImgDisp_s(I1, I2, xGrid, yGrid, ChipSizeX, ChipSizeY, SearchLimitX, Search
                     # call C++
                     Dx1[ii], Dy1[ii], SNR1[ii] = np.float32(compute_dx(ChipShape, ChipI.ravel(), RefShape, RefI.ravel(), scale=1, interp='spline'))
 #                   # call Python
-
+                    # ssif not np.isnan(Dx1[ii]):
                 # SNR1[ii] = 10*np.log10(SNR1[ii]**2)
                 
     else:
