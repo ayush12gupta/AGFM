@@ -268,9 +268,10 @@ def compute_3DVel_single_hermet(V_aoro, A):
         
         resi2 = (b2 - np.dot(A2, v_nev)) #.reshape(4)
         sigma02 = (resi2.T@P2@resi2)/2
-        P2 = (sigma01/sigma02)*P2
         if sigma02==0:
             break
+        
+        P2 = (sigma01/sigma02)*P2
         
         if np.abs(sigma01-sigma02)<1:
             break
