@@ -2,26 +2,42 @@ from shutil import copyfile, move # Utilities for copying and moving files
 from osgeo import gdal, osr            # GDAL support for reading virtual files
 import os, shutil                      # To create and remove directories
 import numpy as np
-# from rasterio.mask import mask
-# import scipy
+import multiprocessing as mp
 from glob import glob
 import scipy.linalg as la
 from datetime import datetime
 from tqdm import tqdm
 from scipy.linalg import lstsq as sp_lstsq
-# from utils import 
 from geogrid_autorift.util import numpy_array_to_raster, get_incang, get_flightang, get_matA_3D
+
+
+# parser = argparse.ArgumentParser()
+# parser.add_argument('-s', '--save_path', type=str, default="./output", help="directory in which orbit file needs to be saved")
+# parser.add_argument('--aux', type=str, default="/DATA/orbit/", help="Sentinel-1 AUX file directory where aux file is saved")
+# parser.add_argument('-d', '--data_path', type=str, default="/DATA/stack_data/", help="directory in which orbit file needs to be saved")
+# parser.add_argument('-t', '--download_txt', type=str, default="./data/data_download.csv", help="Data CSV file")
+# parser.add_argument('--config', type=str, default="./configs/data_config.json", help="Data config file")
+# parser.add_argument('-m', '--mode', dest="mode", type=str, default='offset', help="Option: ['download', 'coreg', 'offset', 'post']")
+# parser.add_argument('-shp', '--glacier_shp', dest='shpfile', type=str, default=None, help='Glacier Shapefile path')
+# parser.add_argument('-msk', '--mask', dest='mask', type=str, default=None, help='Glacier Shapefile path')
+# parser.add_argument('-p', '--polarization', type=str, default="vv", help="Polarisation to be used")
+# # parser.add_argument('--dem', dest="dem_path", type=str, required=True, help="Path for DEM file")
+
+
+# args = parser.parse_args()
 
 
 def read_velocity(path):
     ds = gdal.Open(path)
     V_R_asc = ds.GetRasterBand(1).ReadAsArray()
     V_A_asc = ds.GetRasterBand(2).ReadAsArray()
+    projs = ds.GetProjection()
+    geo = ds.GetGeoTransform()
     ds = None
-    return V_R_asc, V_A_asc
+    return V_R_asc, V_A_asc, projs, geo
 
 
-def save_raster_outputs(save_dir, V_nev):
+def save_raster_outputs(save_dir, V_nev, projs, geo):
     if os.path.exists(save_dir):
         shutil.rmtree(save_dir)
     os.mkdir(save_dir)
@@ -46,7 +62,7 @@ def initP(P, resi, sigma=None):
             P2[i] = P[i]
         elif (max(med-3*std, 0)<ab_resi[i])&((med+3*std)>ab_resi[i]):
             # P[i] = 1/((2*sigma/np.abs(resi[i])))*P[i]
-            if max(med-std, 0)>ab_resi[i]:
+            if max(med-std, 0)>=ab_resi[i]:
                 cnt = max(med-std, 0)-ab_resi[i]
             elif med+std<=ab_resi[i]:
                 cnt = ab_resi[i] - (med+std)
@@ -264,7 +280,6 @@ def compute_3DVel_single_hermet(V_aoro, A):
         # print(np.diag(P1)[0], np.diag(P2)[0], np.diag(P1)[1], np.diag(P2)[1])
         resi1 = (b1 - np.dot(A1, v_nev)) #.reshape(4)    
         sigma01 = (resi1.T@P1@resi1)/2
-        # sigma01 = (resi1.T@resi1)/2
         
         resi2 = (b2 - np.dot(A2, v_nev)) #.reshape(4)
         sigma02 = (resi2.T@P2@resi2)/2
@@ -278,6 +293,48 @@ def compute_3DVel_single_hermet(V_aoro, A):
     
     res = (V_aoro - np.dot(A, v_nev))
     return v_nev.reshape(3), res 
+
+
+def unpacking_column(tup):
+    jj, in_shape, A, v_aoro = tup
+    
+    v_nev = np.empty(in_shape[:-1],dtype=np.float32)
+    v_nev.fill(np.nan)
+    jj = 0
+    
+    for ii in range(in_shape[1]):
+        if np.isnan(v_aoro[:,ii]).any():
+            continue
+            
+        v_nev[:,ii], _ = compute_3DVel_single_hermet(v_aoro[:,ii], A)
+
+    return v_nev
+
+
+def compute_3DVel_mp(V_aoro, config_asc_path, config_des_path):
+    incid_asc = (get_incang(config_asc_path))*(np.pi/180)
+    fl_ang_asc = (get_flightang(config_asc_path))*(np.pi/180)
+    incid_des = (get_incang(config_des_path))*(np.pi/180)
+    fl_ang_des = (get_flightang(config_des_path))*(np.pi/180)
+
+    A = get_matA_3D(fl_ang_asc, incid_asc, fl_ang_des, incid_des)
+    
+    V_nev = np.empty((3, *V_aoro.shape[1:]),dtype=np.float32)
+    V_nev.fill(np.nan)
+
+    V_inp = V_aoro.copy()
+    # V_inp[V_inp==0] = np.nan
+
+    in_shape = V_nev.shape
+    num_cores = min(mp.cpu_count(), 64)
+    chunk_inputs = [(jj, in_shape, A, V_inp[:,:,jj]) for jj in range(in_shape[2])]
+
+    with mp.Pool(processes=num_cores) as pool:
+        V_nev = pool.map(unpacking_column, chunk_inputs)
+
+    V_nev = np.transpose(np.array(V_nev), (1,2,0))
+    
+    return V_nev
     
 
 if __name__=="__main__":

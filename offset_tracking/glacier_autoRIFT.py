@@ -339,9 +339,9 @@ class glacier_autoRIFT:
                 overSampleRatio = self.OverSampleRatio
 
             if self.I1.dtype == np.uint8:
-                DxC, DyC, SNR_C = arImgDisp_u(self.I1, self.I2, xGrid0C.copy(), yGrid0C.copy(), ChipSizeXC, ChipSizeYC, SearchLimitX0C, SearchLimitY0C, self.pad_img, SubPixFlag, overSampleRatio, self.MultiThread)
+                DxC, DyC, SNR_C = arImgDisp_u(self.I2, self.I1, xGrid0C.copy(), yGrid0C.copy(), ChipSizeXC, ChipSizeYC, SearchLimitX0C, SearchLimitY0C, self.pad_img, SubPixFlag, overSampleRatio, self.MultiThread)
             elif self.I1.dtype == np.float32:
-                DxC, DyC, SNR_C = arImgDisp_s(self.I1, self.I2, xGrid0C.copy(), yGrid0C.copy(), ChipSizeXC, ChipSizeYC, SearchLimitX0C, SearchLimitY0C, self.pad_img, SubPixFlag, overSampleRatio, self.MultiThread)
+                DxC, DyC, SNR_C = arImgDisp_s(self.I2, self.I1, xGrid0C.copy(), yGrid0C.copy(), ChipSizeXC, ChipSizeYC, SearchLimitX0C, SearchLimitY0C, self.pad_img, SubPixFlag, overSampleRatio, self.MultiThread)
             else:
                 sys.exit('invalid data type for the image pair which must be unsigned integer 8 or 32-bit float')
             
@@ -383,9 +383,9 @@ class glacier_autoRIFT:
 
             print("Starting Fine Search")
             if self.I1.dtype == np.uint8:
-                DxF, DyF, SNR_F = arImgDisp_u(self.I1, self.I2, xGrid0.copy(), yGrid0.copy(), ChipSizeXF, ChipSizeYF, SearchLimitX0, SearchLimitY0, self.pad_img, SubPixFlag, overSampleRatio, self.MultiThread)
+                DxF, DyF, SNR_F = arImgDisp_u(self.I2, self.I1, xGrid0.copy(), yGrid0.copy(), ChipSizeXF, ChipSizeYF, SearchLimitX0, SearchLimitY0, self.pad_img, SubPixFlag, overSampleRatio, self.MultiThread)
             elif self.I1.dtype == np.float32:
-                DxF, DyF, SNR_F = arImgDisp_s(self.I1, self.I2, xGrid0.copy(), yGrid0.copy(), ChipSizeXF, ChipSizeYF, SearchLimitX0, SearchLimitY0, self.pad_img, SubPixFlag, overSampleRatio, self.MultiThread)
+                DxF, DyF, SNR_F = arImgDisp_s(self.I2, self.I1, xGrid0.copy(), yGrid0.copy(), ChipSizeXF, ChipSizeYF, SearchLimitX0, SearchLimitY0, self.pad_img, SubPixFlag, overSampleRatio, self.MultiThread)
             else:
                 sys.exit('invalid data type for the image pair which must be unsigned integer 8 or 32-bit float')
             
