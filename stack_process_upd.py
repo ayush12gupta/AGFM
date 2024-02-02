@@ -24,7 +24,8 @@ parser.add_argument('-t', '--download_txt', type=str, default="./data/data_downl
 parser.add_argument('--config', type=str, default="./configs/data_config.json", help="Data config file")
 parser.add_argument('-m', '--mode', dest="mode", type=str, default='offset', help="Option: ['download', 'coreg', 'offset', 'post']")
 parser.add_argument('-shp', '--glacier_shp', dest='shpfile', type=str, default=None, help='Glacier Shapefile path')
-parser.add_argument('-p', '--polarization', type=str, default="vh", help="Polarisation to be used")
+parser.add_argument('-msk', '--mask', dest='mask', type=str, default=None, help='Glacier Shapefile path')
+parser.add_argument('-p', '--polarization', type=str, default="vv", help="Polarisation to be used")
 # parser.add_argument('--dem', dest="dem_path", type=str, required=True, help="Path for DEM file")
 
 
@@ -106,18 +107,20 @@ def generate_data(elements, acquisitionDates, max_gap=3):
     return id, master, slave, master2, slave2
 
 
-def offset_tracking(config, cwd, master, slave, master2, slave2, mask):
+def offset_tracking(config, cwd, master, slave, master2, slave2, mask, deltaT):
 
     execute('cp ../testGeogrid.txt testGeogrid.txt')
     if os.path.exists(f'../../merged/SLC/{master}/{master}.slc.full')&os.path.exists(f'../../merged/SLC/{slave}/{slave}.slc.full'):
         # cmd = f'time python {cwd}/geogrid_autorift/testautoRIFT_ISCE.py -m ../../merged/SLC/{master}/{master}.slc.full -s ../../merged/SLC/{slave}/{slave}.slc.full -g ../window_location.tif -chipmax {config["chip_max"]} -chipmin {config["chip_min"]} -mpflag {str(config["num_threads"])} -config {cwd}/configs/data_config.json -ncname {netCDF_out} -vx ../window_rdr_off2vel_x_vec.tif -vy ../window_rdr_off2vel_y_vec.tif -post' #-ssm window_stable_surface_mask.tif -nc S'
         if (master2=='')|(slave2==''):
-            cmd = f'time python {DIR_PATH}/geogrid_autorift/testautoRIFT_ISCE2.py -m ../../merged/SLC/{master}/{master}.slc.full -s ../../merged/SLC/{slave}/{slave}.slc.full -g ../window_location.tif -vx ../window_rdr_off2vel_x_vec.tif -vy ../window_rdr_off2vel_y_vec.tif -mpflag {str(config["num_threads"])} -config {cwd}/configs/data_config.json -post --mask --chipmin 240 --chipmax 960'
+            cmd = f'time python {DIR_PATH}/offset_tracking/testautoRIFT_ISCE2.py -m ../../merged/SLC/{master}/{master}.slc.full -s ../../merged/SLC/{slave}/{slave}.slc.full -g ../window_location.tif -vx ../window_rdr_off2vel_x_vec.tif -vy ../window_rdr_off2vel_y_vec.tif -mpflag {str(config["num_threads"])} --mask {mask} -chipmin 240 -chipmax 960 -dT {int(deltaT)}'
         else:
-            cmd = f'time python {DIR_PATH}/geogrid_autorift/testautoRIFT_ISCE2.py -m ../../merged/SLC/{master}/{master}.slc.full,../../merged/SLC/{master2}/{master2}.slc.full -s ../../merged/SLC/{slave}/{slave}.slc.full,../../merged/SLC/{slave2}/{slave2}.slc.full 
-                    -g ../window_location.tif -vx ../window_rdr_off2vel_x_vec.tif -vy ../window_rdr_off2vel_y_vec.tif -mpflag {str(config["num_threads"])} -config {cwd}/configs/data_config.json -post --mask --chipmin 240 --chipmax 960'
+            cmd = f'time python {DIR_PATH}/offset_tracking/testautoRIFT_ISCE2.py -m ../../merged/SLC/{master}/{master}.slc.full,../../merged/SLC/{master2}/{master2}.slc.full -s ../../merged/SLC/{slave}/{slave}.slc.full,../../merged/SLC/{slave2}/{slave2}.slc.full -g ../window_location.tif -vx ../window_rdr_off2vel_x_vec.tif -vy ../window_rdr_off2vel_y_vec.tif -mpflag {str(config["num_threads"])} --mask {mask} -chipmin 240 -chipmax 960 -dT {int(deltaT)}'
         
         print('PO Command', cmd)
+        cmd_file = open(f'offset_cmd.txt', 'a')
+        cmd_file.write(cmd)
+        cmd_file.close()
         execute(cmd)
     else:
         print("Coregistered images not available check isce.log for issues with ISCE coregisteration")
@@ -127,17 +130,30 @@ def offset_tracking(config, cwd, master, slave, master2, slave2, mask):
 
 def offset_compute(csv_file, config, cwd, mask):
 
-    # execute('rm -rf ../coreg_secondarys ../ESD ../misreg')
+    # execute('rm -rf ../coreg_secondarys ../ESD ../misreg ../coreg_secondarys ../coarse_interferograms ../geom_reference')
     data_pairs = pd.read_csv(csv_file, header=0)
     print("Starting offset tracking estimation using: ", csv_file)
     while (data_pairs['Status']==0).sum():
-
+        data_pairs = data_pairs.fillna('')
         row = data_pairs[data_pairs['Status']==0].iloc[0]
         index = data_pairs[data_pairs['Id']==row['Id']].index[0]
         id  = row['Id']
         print(id)
         
         master, slave, master2, slave2 = row['Master'], row['Slave'], row['Master2'], row['Slave2']
+        if master2 != '':
+            master2 = int(master2)
+        
+        if slave2 != '':
+            slave2 = int(slave2)
+        
+        date_m = str(master)
+        date_s = str(slave)
+        date_m = f'{date_m[:4]}/{date_m[4:6]}/{date_m[-2:]}'
+        date_m = datetime.strptime(date_m, '%Y/%m/%d')
+        date_s = f'{date_s[:4]}/{date_s[4:6]}/{date_s[-2:]}'
+        date_s = datetime.strptime(date_s, '%Y/%m/%d')
+        deltaT = abs((date_s-date_m).days)        
         # Skip offset tracking for the file which have already been computed
         if os.path.exists(f'./{id}/velocity.tif'):
             data_pairs = pd.read_csv(csv_file, header=0)
@@ -150,7 +166,7 @@ def offset_compute(csv_file, config, cwd, mask):
         
         # If coregistered image exists
         if os.path.exists(f'../../merged/SLC/{slave}/{slave}.slc.full'):
-            offset_tracking(config, cwd, str(master), str(slave), str(master2), str(slave2), id, mask)
+            offset_tracking(config, cwd, str(master), str(slave), str(master2), str(slave2), mask, deltaT)
             data_pairs.at[index,'Status'] = 1
         data_pairs = pd.read_csv(os.path.join('../', csv_file), header=0)
         
@@ -198,10 +214,10 @@ def velocity_postprocess(csv_file, shpfile):
             date_s = f'{date_s[:4]}/{date_s[4:6]}/{date_s[-2:]}'
             date_s = datetime.strptime(date_s, '%Y/%m/%d')
             factor = int(abs((date_m - date_s).days))//12
-            if shpfile is not None:
-                cmd = f'python {DIR_PATH}/geogrid_autorift/postprocessing.py -d ./ -f {factor} -shp {shpfile}'
-            else:
-                cmd = f'python {DIR_PATH}/geogrid_autorift/postprocessing.py -d ./ -f {factor}'
+            # if shpfile is not None:
+            #     cmd = f'python {DIR_PATH}/geogrid_autorift/postprocessing.py -d ./ -f {factor} -shp {shpfile}'
+            # else:
+            cmd = f'python {DIR_PATH}/geogrid_autorift/postprocessing.py -d ./ -f {factor}'
             print(cmd)
             execute(cmd)
             data_pairs.at[index,'Status'] = 2
@@ -456,12 +472,12 @@ def main():
     pair_fn = '../image_pairs.csv'
     secondarys = sorted(os.listdir('../secondarys'))
     if not os.path.exists('window_location.tif'):
-        execute(f'python {DIR_PATH}/geogrid_autorift/testGeogrid_ISCE.py -m ../reference -s ../secondarys/{secondarys[0]} -d ../{dem_vrt[0]} -r "[32.06, 32.60, 77.09, 77.82]" --stackfl ../configs/config_reference')   #  -ssm {config["ssm"]}
+        execute(f'python {DIR_PATH}/geogrid_autorift/testGeogrid_ISCE.py -m ../reference -s ../secondarys/{secondarys[0]} -d ../{dem_vrt[0]} -r "{config_isce["ROI"]}" --stackfl ../configs/config_reference')   #  -ssm {config["ssm"]}
     else:
         print("./window_location.tif  ---> Already exists")
     
     print("Starting Offset Tracking")
-    offset_compute(pair_fn, config, cwd, args.shpfile)
+    offset_compute(pair_fn, config, cwd, args.mask)
 
     if args.mode == 'offset':
         print("Complete. Exiting ...... offset")
@@ -473,8 +489,8 @@ def main():
     start_time = prev
     
     print('Starting Velocity Postprocessing ...')
-    print(os.getcwd())
-    velocity_postprocess(pair_fn, args.shpfile)
+    # print(os.getcwd())
+    # velocity_postprocess(pair_fn, args.shpfile)
     
     if args.mode == 'post':
         print("Complete. Exiting ...... post")

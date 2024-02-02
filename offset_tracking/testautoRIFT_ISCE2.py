@@ -72,8 +72,8 @@ def cmdLineParse():
             help='Input chip size min integer')
     parser.add_argument('-chipmax', '--max_chip', dest='chip_max', type=int, required=False, default=1920,
             help='Input chip size max integer')
-    parser.add_argument('-config', '--post_config', dest='post_config', type=str, required=False, default='../config/data_config.json',
-            help='Velocity Post Processing configs these would be passed to utils postprocessing function')
+    parser.add_argument('-dT', '--deltaT', dest='time_diff', type=int, required=True,
+            help='Input chip size max integer')
     parser.add_argument('-vx', '--input_vx', dest='offset2vx', type=str, required=False,
             help='Input pixel offsets to vx conversion coefficients file name')
     parser.add_argument('-vy', '--input_vy', dest='offset2vy', type=str, required=False,
@@ -86,8 +86,6 @@ def cmdLineParse():
             help='flag for packaging output formatted for Sentinel ("S") and Landsat ("L") dataset; default is None')
     parser.add_argument('-mpflag', '--mpflag', dest='mpflag', type=int, required=False, default=0,
             help='number of threads for multiple threading (default is specified by 0, which uses the original single-core version and surpasses the multithreading routine)')
-    parser.add_argument('-post', '--do_postprocess', dest='post', action='store_false', default=True,
-            help='Do postprocessing')
     parser.add_argument('-ncname', '--ncname', dest='ncname', type=str, required=False, default=None,
             help='User-defined filename for the NetCDF output to which the ROI percentage and the production version will be appended')
 
@@ -325,11 +323,11 @@ def main():
                             search_range=inps.search_range,chip_size_min=inps.chip_size_min,
                             chip_size_max=inps.chip_size_max,offset2vx=inps.offset2vx, offset2vy=inps.offset2vy,
                             stable_surface_mask=inps.stable_surface_mask, optical_flag=inps.optical_flag,mask_region=inps.mask,
-                            nc_sensor=inps.nc_sensor, mpflag=inps.mpflag, ncname=inps.ncname, post_config=inps.post_config, chip_min=inps.chip_min, chip_max=inps.chip_max, do_post=inps.post)
+                            nc_sensor=inps.nc_sensor, mpflag=inps.mpflag, ncname=inps.ncname, chip_min=inps.chip_min, chip_max=inps.chip_max, deltaT=inps.time_diff)
 
 
 def generateAutoriftProduct(master_imgs, slave_imgs, grid_location, search_range, chip_size_min, chip_size_max,
-                            offset2vx, offset2vy, stable_surface_mask, optical_flag, mask_region, nc_sensor, mpflag, ncname, post_config,chip_min,chip_max,do_post,
+                            offset2vx, offset2vy, stable_surface_mask, optical_flag, mask_region, nc_sensor, mpflag, ncname,chip_min,chip_max,deltaT,
                             geogrid_run_info=None):
 
     import numpy as np
@@ -561,11 +559,12 @@ def generateAutoriftProduct(master_imgs, slave_imgs, grid_location, search_range
             if offset2va is not None:
                 offset2va[offset2va == nodata] = np.nan
 
-
+            deltaT_def = float(str.split(runCmd('fgrep "Repeat Time:" /DATA/testGeogrid.txt'))[-1])/(3600*24)
+            factor = deltaT/deltaT_def
             # VX = offset2vx_1 * DX + offset2vx_2 * DY
             # VY = offset2vy_1 * DX + offset2vy_2 * DY
-            VX = offset2vr * DX
-            VY = offset2va * DY
+            VX = (offset2vr * DX)/factor
+            VY = (offset2va * DY)/factor
             VX = VX.astype(np.float32)
             VY = VY.astype(np.float32)
 
@@ -1039,12 +1038,12 @@ def generateAutoriftProduct(master_imgs, slave_imgs, grid_location, search_range
                 else:
                     raise Exception('netCDF packaging not supported for the type "{0}"'.format(nc_sensor))
 
-            if do_post:
-                from util import postprocess
-                # Reading config file
-                with open(post_config, 'r') as f:
-                    config = json.load(f)
-                postprocess(ncname, kwargs, config)
+            # if do_post:
+            #     from util import postprocess
+            #     # Reading config file
+            #     with open(post_config, 'r') as f:
+            #         config = json.load(f)
+            #     postprocess(ncname, kwargs, config)
         
         print("Write Outputs Done!!!")
         print(time.time()-t1)
