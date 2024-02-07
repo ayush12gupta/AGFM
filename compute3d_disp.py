@@ -300,7 +300,6 @@ def unpacking_column(tup):
     
     v_nev = np.empty(in_shape[:-1],dtype=np.float32)
     v_nev.fill(np.nan)
-    jj = 0
     
     for ii in range(in_shape[1]):
         if np.isnan(v_aoro[:,ii]).any():
