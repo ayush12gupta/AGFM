@@ -76,7 +76,7 @@ def cmdLineParse():
             help='Input chip size max integer')
     parser.add_argument('-dT', '--deltaT', dest='time_diff', type=int, required=True,
             help='Input chip size max integer')
-    parser.add_argument('-step_dT', '--step_deltaT', dest='step_time_diff', type=int, required=False, default=12,
+    parser.add_argument('-step_dT', '--step_deltaT', dest='step_time_diff', type=int, required=False, default=1,
             help='Input chip size max integer')
     parser.add_argument('-vx', '--input_vx', dest='offset2vx', type=str, required=False,
             help='Input pixel offsets to vx conversion coefficients file name')
@@ -343,7 +343,7 @@ def generateAutoriftProduct(imgs, grid_location, search_range, chip_size_min, ch
     from components.contrib.geo_autoRIFT.autoRIFT import __version__ as version
     #  from autoRIFT import __version__ as version
 
-    step = int(deltaT/step_deltaT)
+    step = int(step_deltaT)
     data = []
     if optical_flag == 1:
         data_m, data_s = loadProductOptical(imgs[0], imgs[step])

@@ -62,61 +62,62 @@ def download_data(username, password, id, data_path, orbit_path):
     return url.split('/')[-1]
 
 
-def add_elements(elements, acquisitionDates, gap):
-    N = len(acquisitionDates)
-    id = [f'stack_{str(elements[i])}_{str(elements[i+gap])}' for i in range(N-gap)]
-    master = [acquisitionDates[i] for i in range(N-gap)]
-    master_2 = master[1:]
-    master_2.append('')
-    for i in range(len(master)-1):
-        master_dt = to_datetime(master[i])
-        master_2_dt = to_datetime(master_2[i])
-        delta = (master_2_dt - master_dt).days
-        if delta>12:
-            master_2[i] = ''
-    
-    slave = [acquisitionDates[i+gap] for i in range(N-gap)]
-    slave_2 = slave[1:]
-    slave_2.append('')
-    for i in range(len(slave)-1):
-        slave_dt = to_datetime(slave[i])
-        slave_2_dt = to_datetime(slave_2[i])
-        delta = (slave_2_dt - slave_dt).days
-        if delta>12:
-            slave_2[i] = ''
-            
-    return id, master, slave, master_2, slave_2
-
-
 def generate_data(elements, acquisitionDates, max_gap=3):
     id = []
     master = []
-    master2 = []
-    
     slave = []
-    slave2 = []
+    steps = []
+    
     for gap in range(1, max_gap+1):
-        idn, mastern, slaven, mastern2, slaven2 = add_elements(elements, acquisitionDates, gap=gap)
+        idn, mastern, slaven, stepsn = add_elements(elements, acquisitionDates, gap=gap)
         id.extend(idn)
         master.extend(mastern)
-        master2.extend(mastern2)
-        
         slave.extend(slaven)
-        slave2.extend(slaven2)
+        steps.extend(stepsn)
 
-    return id, master, slave, master2, slave2
+    return id, master, slave, steps
+    
+
+def add_elements(elements, acquisitionDates, gap, max_step=3):
+    N = len(acquisitionDates)
+    id, master, slave, steps = [], [], [], []
+    for i in range(N-gap):
+        master_dt = to_datetime(acquisitionDates[i])
+        slave_dt = to_datetime(acquisitionDates[i+gap])
+        delta = (slave_dt - master_dt).days
+        if (gap>1)&(delta>50):
+            continue
+        
+        id.append(f'stack_{str(elements[i])}_{str(elements[i+gap])}')
+        master.append(acquisitionDates[i])
+        slave.append(acquisitionDates[i+gap])
+        step0 = [acquisitionDates[i], acquisitionDates[i+gap]]
+        dt1 = to_datetime(acquisitionDates[i])
+        dt2 = to_datetime(acquisitionDates[min(i+max_step, N-1)])
+        delt = (dt2 - dt1).days
+        if delt==36:
+            step0.extend(acquisitionDates[i:i+max_step+1])
+
+        step0 = sorted(list(set(step0)))
+        if (gap==max_step)&(delt==36):
+            steps.append(','.join(step0[::3]))
+        else:
+            steps.append(','.join(step0))
+            
+    return id, master, slave, steps
 
 
-def offset_tracking(config, cwd, master, slave, master2, slave2, mask, deltaT):
+def offset_tracking(config, cwd, master, slave, steps, mask, deltaT, step_dT=1):
 
+    input_list = ','.join([f'../../merged/SLC/{st}/{st}.slc.full' for st in steps.split(',')])
     execute('cp ../testGeogrid.txt testGeogrid.txt')
     if os.path.exists(f'../../merged/SLC/{master}/{master}.slc.full')&os.path.exists(f'../../merged/SLC/{slave}/{slave}.slc.full'):
-        # cmd = f'time python {cwd}/geogrid_autorift/testautoRIFT_ISCE.py -m ../../merged/SLC/{master}/{master}.slc.full -s ../../merged/SLC/{slave}/{slave}.slc.full -g ../window_location.tif -chipmax {config["chip_max"]} -chipmin {config["chip_min"]} -mpflag {str(config["num_threads"])} -config {cwd}/configs/data_config.json -ncname {netCDF_out} -vx ../window_rdr_off2vel_x_vec.tif -vy ../window_rdr_off2vel_y_vec.tif -post' #-ssm window_stable_surface_mask.tif -nc S'
-        if (master2=='')|(slave2==''):
-            cmd = f'time python {DIR_PATH}/offset_tracking/testautoRIFT_ISCE2.py -m ../../merged/SLC/{master}/{master}.slc.full -s ../../merged/SLC/{slave}/{slave}.slc.full -g ../window_location.tif -vx ../window_rdr_off2vel_x_vec.tif -vy ../window_rdr_off2vel_y_vec.tif -mpflag {str(config["num_threads"])} --mask {mask} -chipmin 240 -chipmax 960 -dT {int(deltaT)}'
-        else:
-            cmd = f'time python {DIR_PATH}/offset_tracking/testautoRIFT_ISCE2.py -m ../../merged/SLC/{master}/{master}.slc.full,../../merged/SLC/{master2}/{master2}.slc.full -s ../../merged/SLC/{slave}/{slave}.slc.full,../../merged/SLC/{slave2}/{slave2}.slc.full -g ../window_location.tif -vx ../window_rdr_off2vel_x_vec.tif -vy ../window_rdr_off2vel_y_vec.tif -mpflag {str(config["num_threads"])} --mask {mask} -chipmin 240 -chipmax 960 -dT {int(deltaT)}'
+        # if (master2=='')|(slave2==''):
+        #     cmd = f'time python {DIR_PATH}/offset_tracking/testautoRIFT_ISCE2.py -m ../../merged/SLC/{master}/{master}.slc.full -s ../../merged/SLC/{slave}/{slave}.slc.full -g ../window_location.tif -vx ../window_rdr_off2vel_x_vec.tif -vy ../window_rdr_off2vel_y_vec.tif -mpflag {str(config["num_threads"])} --mask {mask} -chipmin 240 -chipmax 960 -dT {int(deltaT)} -step_dT {int(step_dT)}'
+        # else:
+        #     cmd = f'time python {DIR_PATH}/offset_tracking/testautoRIFT_ISCE2.py -m ../../merged/SLC/{master}/{master}.slc.full,../../merged/SLC/{master2}/{master2}.slc.full -s ../../merged/SLC/{slave}/{slave}.slc.full,../../merged/SLC/{slave2}/{slave2}.slc.full -g ../window_location.tif -vx ../window_rdr_off2vel_x_vec.tif -vy ../window_rdr_off2vel_y_vec.tif -mpflag {str(config["num_threads"])} --mask {mask} -chipmin 240 -chipmax 960 -dT {int(deltaT)} -step_dT {int(step_dT)}'
         
+        cmd = f'time python {DIR_PATH}/offset_tracking/testautoRIFT_ISCE2.py -i {input_list} -g ../window_location.tif -vx ../window_rdr_off2vel_x_vec.tif -vy ../window_rdr_off2vel_y_vec.tif -mpflag {str(config["num_threads"])} --mask {mask} -chipmin 240 -chipmax 960 -dT {int(deltaT)} -step_dT {int(step_dT)}'
         print('PO Command', cmd)
         cmd_file = open(f'offset_cmd.txt', 'a')
         cmd_file.write(cmd)
@@ -138,14 +139,15 @@ def offset_compute(csv_file, config, cwd, mask):
         row = data_pairs[data_pairs['Status']==0].iloc[0]
         index = data_pairs[data_pairs['Id']==row['Id']].index[0]
         id  = row['Id']
+        id1, id2 = id.split('_')[1:]
         print(id)
         
-        master, slave, master2, slave2 = row['Master'], row['Slave'], row['Master2'], row['Slave2']
-        if master2 != '':
-            master2 = int(master2)
+        master, slave, steps = row['Master'], row['Slave'], row['Steps']
+        # if master2 != '':
+        #     master2 = int(master2)
         
-        if slave2 != '':
-            slave2 = int(slave2)
+        # if slave2 != '':
+        #     slave2 = int(slave2)
         
         date_m = str(master)
         date_s = str(slave)
@@ -153,7 +155,7 @@ def offset_compute(csv_file, config, cwd, mask):
         date_m = datetime.strptime(date_m, '%Y/%m/%d')
         date_s = f'{date_s[:4]}/{date_s[4:6]}/{date_s[-2:]}'
         date_s = datetime.strptime(date_s, '%Y/%m/%d')
-        deltaT = abs((date_s-date_m).days)        
+        deltaT = abs((date_s-date_m).days)
         # Skip offset tracking for the file which have already been computed
         if os.path.exists(f'./{id}/velocity.tif'):
             data_pairs = pd.read_csv(csv_file, header=0)
@@ -166,7 +168,7 @@ def offset_compute(csv_file, config, cwd, mask):
         
         # If coregistered image exists
         if os.path.exists(f'../../merged/SLC/{slave}/{slave}.slc.full'):
-            offset_tracking(config, cwd, str(master), str(slave), str(master2), str(slave2), mask, deltaT)
+            offset_tracking(config, cwd, str(master), str(slave), str(steps), mask, deltaT, int(id2)-int(id1))
             data_pairs.at[index,'Status'] = 1
         data_pairs = pd.read_csv(os.path.join('../', csv_file), header=0)
         
@@ -377,9 +379,9 @@ def main():
         acquisitionDates = [url.split('_')[5][:8] for url in urls]
         N = len(acquisitionDates)
         elements = [i for i in range(N)]
-        id, master, slave, master2, slave2 = generate_data(elements, acquisitionDates, VELOCITY_CORR_GAP)
-        df = pd.DataFrame({'Id':id, 'Master':master, 'Slave':slave, 'Master2':master2, 'Slave2':slave2
-                           , 'Status': [0]*len(id), 'ROI':[str(f"[{bbox.replace(' ', ', ')}]")]*len(id)})
+        id, master, slave, steps = generate_data(elements, acquisitionDates, VELOCITY_CORR_GAP)
+        df = pd.DataFrame({'Id':id, 'Master':master, 'Slave':slave, 'Steps':steps, 'Status': [0]*len(id), 
+                           'ROI':[str(f"[{bbox.replace(' ', ', ')}]")]*len(id)})
         df.to_csv('image_pairs.csv')
 
     if args.mode == 'download':
