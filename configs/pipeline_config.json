@@ -1,0 +1,10 @@
+{
+    "save_path": "/DATA/run_2017_19",
+    "SAR_dir": "/DATA/S2_Data/",
+    "Orbit_dir": "/DATA/S2_Data/orbit/",
+    "aux_dir": "/DATA/S2_Data/aux/",
+    "shapefile_dir": "/DATA/shapefiles/CB_glacier_buffer.shp",
+    "config_path": "/DATA/Automated_Offset_Tracking/configs/data_config.json",
+    "mask": "/DATA/mask.tif",
+    "polarisation": "vv"
+}

@@ -341,9 +341,11 @@ def generateAutoriftProduct(imgs, grid_location, search_range, chip_size_min, ch
 
     import isce
     from components.contrib.geo_autoRIFT.autoRIFT import __version__ as version
-    #  from autoRIFT import __version__ as version
 
     step = int(step_deltaT)
+    if len(imgs)<=step:
+        step = len(imgs)-1
+        
     data = []
     if optical_flag == 1:
         data_m, data_s = loadProductOptical(imgs[0], imgs[step])
