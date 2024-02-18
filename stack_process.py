@@ -41,9 +41,9 @@ def to_datetime(date):
     return date
 
 def execute_write(cmd, file, file_err):
-    f = open(file, "w")
-    f_err = open(file_err, "w")
-    subprocess.check_call(cmd, shell=True, stdout=f, stderr=f_err)
+    # f = open(file, "w")
+    f_err = open(file_err, "w") #, stdout=f
+    subprocess.check_call(cmd, shell=True, stderr=f_err)
 
 
 def write_time(filename, exec_time):
@@ -140,7 +140,7 @@ def offset_tracking(config, cwd, master, slave, steps, mask, deltaT, step_dT=1):
 
 def offset_compute(csv_file, config, cwd, mask):
 
-    # execute('rm -rf ../coreg_secondarys ../ESD ../misreg ../coreg_secondarys ../coarse_interferograms ../geom_reference')
+    execute('rm -rf ../coreg_secondarys ../ESD ../misreg ../coreg_secondarys ../coarse_interferograms ../geom_reference')
     data_pairs = pd.read_csv(csv_file, header=0)
     print("Starting offset tracking estimation using: ", csv_file)
     while (data_pairs['Status']==0).sum():

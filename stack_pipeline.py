@@ -71,10 +71,18 @@ def main(inps):
     stack_offset_tracking(config['config_path'], asc_txt, f'{config["SAR_dir"]}/ascending/', config['polarisation'].lower(), \
                           config['mask'], f'{config["save_path"]}/stack_asc/', 'post')
     
+    if not os.path.exists(f'{config["SAR_dir"]}/ascending/offset_tracking'):
+        print("Ascending Pass Offset Tracking not complete")
+        return
+    
     # Performing coregistration + offset tracking for descending images
     print("Current working directory:", os.getcwd())
     stack_offset_tracking(config['config_path'], des_txt, f'{config["SAR_dir"]}/descending/', config['polarisation'].lower(), \
                           config['mask'], f'{config["save_path"]}/stack_des/', 'post')
+    
+    if not os.path.exists(f'{config["SAR_dir"]}/descending/offset_tracking'):
+        print("Descending Pass Offset Tracking not complete")
+        return
 
     # 3D Inversion
     print("Current working directory:", os.getcwd())
