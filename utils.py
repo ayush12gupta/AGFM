@@ -167,11 +167,11 @@ def process_check_running(num):
         try:
             processName = proc.cmdline()
             if len(processName)!=0:
-                if proc.status() == psutil.STATUS_RUNNING:
-                    if 'python3' in processName[0]:
-                        cmd = ' '.join(processName)
-                        if check[num-1] in cmd:
-                            return True
+                # if proc.status() == psutil.STATUS_RUNNING:
+                if 'python3' in processName[0]:
+                    cmd = ' '.join(processName)
+                    if check[num-1] in cmd:
+                        return True
                 
         except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
             pass

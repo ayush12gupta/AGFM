@@ -2,6 +2,8 @@ import os, shutil
 import glob
 import time
 import json
+import numpy as np
+import pandas as pd
 from datetime import datetime
 from stack_process import stack_offset_tracking
 from batch3Dinversion import batch_inversion
@@ -71,8 +73,9 @@ def main(inps):
     stack_offset_tracking(config['config_path'], asc_txt, f'{config["SAR_dir"]}/ascending/', config['polarisation'].lower(), \
                           config['mask'], f'{config["save_path"]}/stack_asc/', 'post')
     
-    if not os.path.exists(f'{config["SAR_dir"]}/ascending/offset_tracking'):
+    if not os.path.exists(f'{config["save_path"]}/stack_asc/offset_tracking'):
         print("Ascending Pass Offset Tracking not complete")
+        print(f'{config["save_path"]}/stack_asc/offset_tracking', "doesn't exists")
         return
     
     # Performing coregistration + offset tracking for descending images
@@ -80,13 +83,16 @@ def main(inps):
     stack_offset_tracking(config['config_path'], des_txt, f'{config["SAR_dir"]}/descending/', config['polarisation'].lower(), \
                           config['mask'], f'{config["save_path"]}/stack_des/', 'post')
     
-    if not os.path.exists(f'{config["SAR_dir"]}/descending/offset_tracking'):
+    if not os.path.exists(f'{config["save_path"]}/stack_des/offset_tracking'):
         print("Descending Pass Offset Tracking not complete")
+        print(f'{config["save_path"]}/stack_des/offset_tracking', "doesn't exists")
         return
 
     # 3D Inversion
     print("Current working directory:", os.getcwd())
-    batch_inversion(f'{config["save_path"]}/stack_asc/', f'{config["save_path"]}/stack_des/', f'{config["save_path"]}/3D_Velocities/')
+    df = pd.read_csv(f'{config["save_path"]}/stack_asc/image_pairs.csv')
+    id_master_slave = np.array([df['Id'].tolist(), df['Master'].tolist(), df['Slave'].tolist()]).T
+    batch_inversion(id_master_slave, f'{config["save_path"]}/stack_asc/', f'{config["save_path"]}/stack_des/', f'{config["save_path"]}/3D_Velocities/')
 
 
 

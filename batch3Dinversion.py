@@ -128,7 +128,7 @@ def compute_3DVel_mp(V_aoro, config_asc_path, config_des_path):
     return V_nev
 
 
-def batch_inversion(asc_path, des_path, out_dir):
+def batch_inversion(id_master_slave, asc_path, des_path, out_dir):
     
     asc_imgs = glob(f'{asc_path}/offset_tracking/*/velocity.tif')
     des_imgs = glob(f'{des_path}/offset_tracking/*/velocity.tif')
@@ -145,7 +145,8 @@ def batch_inversion(asc_path, des_path, out_dir):
         V_aoro = np.array([va_rg, va_az, vd_rg, vd_az])
         V_nev = compute_3DVel_mp(V_aoro, f'{asc_path}/offset_tracking/testGeogrid.txt', f'{des_path}/offset_tracking/testGeogrid.txt')
 
-        ds = numpy_array_to_raster(f'{out_dir}/{stack}.tif', V_nev, projs, geo, nband=3)
+        dt_m, dt_s = id_master_slave[np.where(id_master_slave[:,0]==stack)][0,1:]
+        ds = numpy_array_to_raster(f'{out_dir}/{dt_m}_{dt_s}_{stack[6:]}.tif', V_nev, projs, geo, nband=3)
         ds.FlushCache()
         ds = None
 

@@ -349,8 +349,7 @@ def stack_offset_tracking(config_path, urls, data_path, polarization, mask, save
     with open(f'{DIR_PATH}/configs/isce_config.json', 'r') as f:
         config_isce = json.load(f)
     bbox = config_isce["ROI"][1:-1].replace(",","")
-
-    # urls = []
+    
     exec_time = []
 
     # if os.path.exists(data_path):
@@ -359,21 +358,21 @@ def stack_offset_tracking(config_path, urls, data_path, polarization, mask, save
     cwd = os.getcwd()
     num_images = len(urls)
     
-    for url in urls:
-        print(data_path+url+'.zip')
-        if not os.path.exists(data_path+url+'.zip'):
-            download_data(config_isce['ASF_user'], config_isce['ASF_password'], url, data_path, config['Orbit_dir'])
-    
-    # Downloading orbit data
-    # os.system(f'eof --search-path {data_path} --save-dir {config["Orbit_dir"]} --asf-user {config_isce["ASF_user"]} --asf-password {config_isce["ASF_password"]}')
-
-    # Removing the extra SAFE files
-    safe_files = [url+'.zip' for url in urls]
-    for fn in os.listdir(data_path):
-        if fn not in safe_files:
-            os.remove(os.path.join(data_path, fn))
-    assert len(urls)==len(os.listdir(data_path))
-    print("Dataset Download Completed")
+    merged_files = glob.glob(f'{save_path}/merged/SLC/*/*.slc.full')
+    if len(merged_files)!=num_images:
+        for url in urls:
+            print(data_path+url+'.zip')
+            if not os.path.exists(data_path+url+'.zip'):
+                download_data(config_isce['ASF_user'], config_isce['ASF_password'], url, data_path, config['Orbit_dir'])
+        
+        # Removing the extra SAFE files
+        safe_files = [url+'.zip' for url in urls]
+        for fn in os.listdir(data_path):
+            if fn not in safe_files:
+                os.remove(os.path.join(data_path, fn))
+                
+        assert len(urls)==len(os.listdir(data_path))
+        print("Dataset Download Completed")
     
     os.makedirs(save_path, exist_ok=True)
     os.chdir(save_path)
