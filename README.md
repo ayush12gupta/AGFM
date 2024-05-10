@@ -13,6 +13,19 @@ We just need to provide the reference and secondary image pair URL, which can be
 * Velocity output file names (--netCDF_out)
 * DATA Config file containing coregistration parameters [DEFAULT](./configs/isce_config.json) (--config)
 
+
+```
+usage: stack_pipeline.py [-h] -t_asc DOWNLOAD_ASC_TXT -t_des DOWNLOAD_DES_TXT [--config CONFIG]
+
+optional arguments:
+  -h, --help            show this help message and exit
+  -t_asc DOWNLOAD_ASC_TXT, --download_asc_txt DOWNLOAD_ASC_TXT
+                        Data Ascending txt file
+  -t_des DOWNLOAD_DES_TXT, --download_des_txt DOWNLOAD_DES_TXT
+                        Data Descending txt file
+  --config CONFIG       Data config file
+```
+
 An example command calling single_process.py has been given below.
        
     python single_process.py --reference REFERENCE_URL --secondary SECONDARY_URL --save_path OUT_PATH --netCDF_out POST_FILENAME

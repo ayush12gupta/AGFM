@@ -15,9 +15,9 @@ def cmdLineParse():
     '''
     import argparse
     parser = argparse.ArgumentParser()
-    parser.add_argument('-t_asc', '--download_asc_txt', type=str, required=True, help="Data Ascending CSV file")
-    parser.add_argument('-t_des', '--download_des_txt', type=str, required=True, help="Data Descending CSV file")
-    parser.add_argument('--config', type=str, default="./configs/pipeline_config.json", help="Data config file")
+    parser.add_argument('-t_asc', '--download_asc_txt', type=str, required=True, help="Data Ascending txt file")
+    parser.add_argument('-t_des', '--download_des_txt', type=str, required=True, help="Data Descending txt file")
+    parser.add_argument('--config', type=str, default="./configs/pipeline_config.json", help="Pipeline config file")
     # parser.add_argument('--dem', dest="dem_path", type=str, required=True, help="Path for DEM file")
     return parser.parse_args()
 

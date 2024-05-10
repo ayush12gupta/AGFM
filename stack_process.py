@@ -155,7 +155,7 @@ def offset_tracking(config, cwd, master, slave, steps, mask, deltaT, step_dT=1):
     input_list = ','.join([f'../../merged/SLC/{st}/{st}.slc.full' for st in steps.split(',')])
     execute('cp ../testGeogrid.txt testGeogrid.txt')
     if os.path.exists(f'../../merged/SLC/{master}/{master}.slc.full')&os.path.exists(f'../../merged/SLC/{slave}/{slave}.slc.full'):
-        cmd = f'time python {DIR_PATH}/offset_tracking/testautoRIFT_ISCE.py -i {input_list} -g ../window_location.tif -vx ../window_rdr_off2vel_x_vec.tif -vy ../window_rdr_off2vel_y_vec.tif -mpflag {str(config["num_threads"])} --mask {mask} -chipmin 240 -chipmax 960 -dT {int(deltaT)} -step_dT {int(step_dT)}'
+        cmd = f'time python {DIR_PATH}/offset_tracking/testautoRIFT_ISCE.py -i {input_list} -g ../window_location.tif -vx ../window_rdr_off2vel_x_vec.tif -vy ../window_rdr_off2vel_y_vec.tif -mpflag {str(config["num_threads"])} --mask {mask} -chipmin {str(config["chip_min"])} -chipmax {str(config["chip_max"])} -dT {int(deltaT)} -step_dT {int(step_dT)}'
         print('PO Command', cmd)
         cmd_file = open(f'offset_cmd.txt', 'a')
         cmd_file.write(cmd)
@@ -223,12 +223,12 @@ def stack_offset_tracking(config_path, urls, data_path, polarization, shapefile,
     # Reading config files
     with open(config_path, 'r') as f:
         config = json.load(f)
-    with open(f'{DIR_PATH}/configs/isce_config.json', 'r') as f:
-        config_isce = json.load(f)
-    bbox = config_isce["ROI"][1:-1].replace(",","")
+    with open(config["cred_config"], 'r') as f:
+        config_cred = json.load(f)
     
-    exec_time = []
+    bbox = config["ROI"][1:-1].replace(",","")
 
+    exec_time = []
     os.makedirs(data_path, exist_ok=True)
     cwd = os.getcwd()
     num_images = len(urls)
@@ -238,7 +238,7 @@ def stack_offset_tracking(config_path, urls, data_path, polarization, shapefile,
         for url in urls:
             print(data_path+url+'.zip')
             if not os.path.exists(data_path+url+'.zip'):
-                download_data(config_isce['ASF_user'], config_isce['ASF_password'], url, data_path, config['Orbit_dir'])
+                download_data(config_cred['ASF_user'], config_cred['ASF_password'], url, data_path, config['Orbit_dir'])
         
         # Removing the extra SAFE files
         safe_files = [url+'.zip' for url in urls]
@@ -269,7 +269,7 @@ def stack_offset_tracking(config_path, urls, data_path, polarization, shapefile,
     start_time = time.time()
     # If coregistration completed then move on to next step
     if len(glob.glob('merged/SLC/*/*.slc.full'))==0:
-        print(config_isce["ROI"][1:-1].replace(',',''))
+        print(config["ROI"][1:-1].replace(',',''))
         # execute('cp -r /DATA/glacier-vel/geogrid_req/dem/demLat_N31_N34_Lon_E076_E079* ./')
         
         ## HARDCODED !!!!!!!!!!!!!!!!!!!!!!
@@ -277,13 +277,13 @@ def stack_offset_tracking(config_path, urls, data_path, polarization, shapefile,
         # dem = glob.glob('*.wgs84')
 
         # Downloading DEM file and converting to ISCE file
-        roi = np.array(config_isce["ROI"][1:-1].replace(' ','').split(',')).astype('float')
+        roi = np.array(config["ROI"][1:-1].replace(' ','').split(',')).astype('float')
         download_DEM(roi, out_path='./dem_roi.tif')
         dem = glob.glob('*.dem')
         print("Using DEM file", dem)
 
         if not os.path.exists('./run_files'):
-            execute(f'python3 {DIR_PATH}/stack/topsStack/stackSentinel.py -s {data_path} -d {dem[0]} -o {config["Orbit_dir"]} -a {config["aux_dir"]} -p {polarization} -e 0.6 --num_proc 64 -b "{config_isce["ROI"][1:-1].replace(",","")}" -t "python3 {DIR_PATH}/stack/topsStack/" -W slc')
+            execute(f'python3 {DIR_PATH}/stack/topsStack/stackSentinel.py -s {data_path} -d {dem[0]} -o {config["Orbit_dir"]} -a {config["aux_dir"]} -p {polarization} -e 0.6 --num_proc 64 -b "{config["ROI"][1:-1].replace(",","")}" -t "python3 {DIR_PATH}/stack/topsStack/" -W slc')
             
         run_files = glob.glob('run_files/*')
         log_folder = 'log_files'
@@ -353,7 +353,7 @@ def stack_offset_tracking(config_path, urls, data_path, polarization, shapefile,
     # dem = glob.glob('*.wgs84')
     dem = glob.glob('*.dem')
     dem_vrt = glob.glob('*.dem.vrt')
-    generate_dem_products(dem[0], config_isce["ROI"], config)
+    generate_dem_products(dem[0], config["ROI"], config)
     
     dates = os.listdir('merged/SLC/')
     os.makedirs('./offset_tracking', exist_ok=True)
@@ -362,7 +362,7 @@ def stack_offset_tracking(config_path, urls, data_path, polarization, shapefile,
     pair_fn = '../image_pairs.csv'
     secondarys = sorted(os.listdir('../secondarys'))
     if not os.path.exists('window_location.tif'):
-        execute(f'python {DIR_PATH}/offset_tracking/testGeogrid_ISCE.py -m ../reference -s ../secondarys/{secondarys[0]} -d ../{dem_vrt[0]} -r "{config_isce["ROI"]}" --stackfl ../configs/config_reference')   #  -ssm {config["ssm"]}
+        execute(f'python {DIR_PATH}/offset_tracking/testGeogrid_ISCE.py -m ../reference -s ../secondarys/{secondarys[0]} -d ../{dem_vrt[0]} -r "{config["ROI"]}" --stackfl ../configs/config_reference')   #  -ssm {config["ssm"]}
     else:
         print("./window_location.tif  ---> Already exists")
     

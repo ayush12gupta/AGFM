@@ -1,19 +1,10 @@
 {
     "num_threads": 64,
-    "chip_min": 256,
-    "chip_max": 1024,
-    "SAR_dir": "/DATA/data/",
+    "chip_min": 240,
+    "chip_max": 960,
     "Orbit_dir": "/DATA/S2_Data/orbit/",
     "aux_dir": "/DATA/S2_Data/aux/",
-    "shapefile_dir": "/DATA/geogrid_req/chandra_bhaga/",
-    "isce_config": "config/isce_config.json",
+    "cred_config": "config/credentials.json",
     "fails": "/DATA/fails.txt",
-    "reference_vel": "./ref_vel.tif",
-    "dem": {"DEM": "./data/dem_roi.tif",
-            "Slope": "./data/demroi_2.tif",
-            "X": "./data/dem_roi_X.tif",
-            "Y": "./data/dem_roi_Y.tif"
-        },
-    "ssm": "ssm.tif",
-    "azimuthAngle": 12.8160
+    "ROI": "[32.06, 32.60, 77.09, 77.82]"
 }

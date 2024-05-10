@@ -34,6 +34,7 @@ import sys
 import json
 import datetime
 import time
+import numpy as np
 import csv
 from xml.dom import minidom
 import itertools
@@ -44,41 +45,55 @@ import threading
 import subprocess as sub
 try:
     # For Python 3.0 and later
-    from urllib.request import urlopen,HTTPCookieProcessor,HTTPPasswordMgrWithDefaultRealm,HTTPBasicAuthHandler,HTTPDigestAuthHandler,build_opener,install_opener
+    from urllib.request import (
+        urlopen,
+        HTTPCookieProcessor,
+        HTTPPasswordMgrWithDefaultRealm,
+        HTTPBasicAuthHandler,
+        HTTPDigestAuthHandler,
+        build_opener,
+        install_opener,
+    ) 
     from urllib.parse import urlencode
     from urllib.error import HTTPError
     from queue import Queue
 except ImportError:
     # Fall back to Python2
-    from urllib2 import urlopen,HTTPCookieProcessor,HTTPPasswordMgrWithDefaultRealm,HTTPBasicAuthHandler,HTTPDigestAuthHandler,build_opener,install_opener,HTTPError
+    from urllib2 import (
+        urlopen,
+        HTTPCookieProcessor,
+        HTTPPasswordMgrWithDefaultRealm,
+        HTTPBasicAuthHandler,
+        HTTPDigestAuthHandler,
+        build_opener,
+        install_opener,
+        HTTPError,
+    )
     from urllib import urlencode
     from Queue import Queue
 import ssl
 
-import password_config as password_config
+import password_config
 
-class MyParser(optparse.OptionParser):
-    def format_epilog(self, formatter):
-        return self.epilog
-    def format_description(self, formatter):
-        return self.description
-    
-def main(argv):
-    ### READ IN PARAMETERS FROM THE COMMAND LINE ###
-    desc = """Command line client for searching with the SSARA Federated API, 
+
+###################################################################################################
+DESCRIPTION = """
+Command line client for searching with the SSARA Federated API, 
 creating KMLs, and downloading data.  See the options and 
 descriptions below for details and usage examples.
 
 For questions or comments, contact Scott Baker: baker@unavco.org
-    """
-    epi = """
-Usage Examples:
+"""
+
+EXAMPLE = """Usage Examples:
   These will do the search and create a KML:
+    ssara_federated_query.py -p SENTINEL-1A,SENTINEL-1B -r 14 -b '23.8,24.7,39.3,40.3' --kml
+    ssara_federated_query.py -p SENTINEL-1A,SENTINEL-1B -r 14 -b '23.8,24.7,39.3,40.3' --download --parallel=4
     ssara_federated_query.py --platform=ENVISAT -r 170 -f 2925 --kml
     ssara_federated_query.py --platform=ENVISAT -r 170,392 -f 2925,657-693 -s 2003-01-01 -e 2008-01-01 --kml
     ssara_federated_query.py --platform=ENVISAT,ERS-1,ERS-2 -r 170 -f 2925 --collectionName="WInSAR ESA,EarthScope ESA" --kml
     ssara_federated_query.py --platform=ENVISAT --intersectsWith='POLYGON((-118.3 33.7, -118.3 33.8, -118.0 33.8, -118.0 33.7, -118.3 33.7))' --kml
-    
+
   To download data, add the --download option and add your user credentials to the password_config.py file
     ssara_federated_query.py --platform=ENVISAT -r 170 -f 2925 --download 
     ssara_federated_query.py --platform=ENVISAT -r 170,392 -f 2925,657-693 -s 2003-01-01 -e 2008-01-01 --download 
@@ -89,26 +104,50 @@ Usage Examples:
     ssara_federated_query.py --platform=UAVSAR --relativeOrbit=05901 --processingLevel='' --intersectsWith='POINT(-155.3 19.4)'
     ssara_federated_query.py --platform=UAVSAR --relativeOrbit=05901 --processingLevel='INTERFEROMETRY' --intersectsWith='POINT(-155.3 19.4)'
 """
-    parser = MyParser(description=desc, epilog=epi, version='1.0')
+
+
+class MyParser(optparse.OptionParser):
+    def format_epilog(self, formatter):
+        return self.epilog
+    def format_description(self, formatter):
+        return self.description
+    
+def main(argv):
+    ### READ IN PARAMETERS FROM THE COMMAND LINE ###
+    parser = MyParser(description=DESCRIPTION, epilog=EXAMPLE, version='1.0')
     querygroup = optparse.OptionGroup(parser, "Query Parameters", "These options are used for the API query.  "  
                                       "Use options to limit what is returned by the search. These options act as a way "
                                       "to filter the results and narrow down the search results.")
     
-    querygroup.add_option('-p','--platform', action="store", dest="platform", metavar='<ARG>', default='', help='List of platforms (ie ALOS, ENVISAT, ERS-2...')
-    querygroup.add_option('-a','--absoluteOrbit', action="store", dest="absoluteOrbit", metavar='<ARG>', default='',help='Absolute orbit (single orbit or list)')                      
-    querygroup.add_option('-r', '--relativeOrbit', action="store", dest="relativeOrbit", metavar='<ARG>', default='',help='Relative Orbit (ie track or path)')  
-    querygroup.add_option('-i','--intersectsWith', action="store", dest="intersectsWith", metavar='<ARG>', default='',help='WKT format POINT,LINE, or POLYGON')
-    querygroup.add_option('-f', '--frame', action="store", dest="frame", metavar='<ARG>', default='',help='frame(s) (single frame or as a list or range)')  
-    querygroup.add_option('-s', '--start', action="store", dest="start", metavar='<ARG>', default='',help='start date for acquisitions')
-    querygroup.add_option('-e', '--end', action="store", dest="end", metavar='<ARG>', default='',help='end date for acquisitions')
+    querygroup.add_option('-p','--platform', action="store", dest="platform", metavar='<ARG>', default='',
+                          help='List of platforms (ie ALOS, ENVISAT, ERS-2...')
+    querygroup.add_option('-a','--absoluteOrbit', action="store", dest="absoluteOrbit", metavar='<ARG>', default='',
+                          help='Absolute orbit (single orbit or list)')                      
+    querygroup.add_option('-r', '--relativeOrbit', action="store", dest="relativeOrbit", metavar='<ARG>', default='',
+                          help='Relative Orbit (ie track or path)')  
+    querygroup.add_option('-i','--intersectsWith', action="store", dest="intersectsWith", metavar='<ARG>', default='',
+                          help='WKT format POINT,LINE, or POLYGON')
+    querygroup.add_option('-b','--bbox', action="store", dest="boundingBox", metavar='<ARG>', default='',
+                          help='Bounding box in SNWE')
+    querygroup.add_option('-f', '--frame', action="store", dest="frame", metavar='<ARG>', default='',
+                          help='frame(s) (single frame or as a list or range)')  
+    querygroup.add_option('-s', '--start', action="store", dest="start", metavar='<ARG>', default='',
+                          help='start date for acquisitions')
+    querygroup.add_option('-e', '--end', action="store", dest="end", metavar='<ARG>', default='',
+                          help='end date for acquisitions')
     querygroup.add_option('--beamMode', action="store", dest="beamMode", metavar='<ARG>', default='',help='list of beam modes')  
     querygroup.add_option('--beamSwath', action="store", dest="beamSwath", metavar='<ARG>', default='',help='list of swaths: S1, S2, F1, F4...')
-    querygroup.add_option('--flightDirection', action="store", dest="flightDirection", metavar='<ARG>', default='',help='Flight Direction (A or D, default is both)')
-    querygroup.add_option('--lookDirection', action="store", dest="lookDirection", metavar='<ARG>', default='',help='Look Direction (L or R, default is both)')
+    querygroup.add_option('--flightDirection', action="store", dest="flightDirection", metavar='<ARG>', default='',
+                          help='Flight Direction (A or D, default is both)')
+    querygroup.add_option('--lookDirection', action="store", dest="lookDirection", metavar='<ARG>', default='',
+                          help='Look Direction (L or R, default is both)')
     querygroup.add_option('--polarization', action="store", dest="polarization", metavar='<ARG>', default='',help='single or as a list')
-    querygroup.add_option('--collectionName', action="store", dest="collectionName", metavar='<ARG>', default='',help='single collection or list of collections')  
-    querygroup.add_option('--processingLevel', action="store", dest="processingLevel", default='L0,L1.0,SLC', help='Processing Level of data: L0, L1, L1.0, SLC... ' )
-    querygroup.add_option('--maxResults', action="store", dest="maxResults", type="int", metavar='<ARG>', help='maximum number of results to return (from each archive)')
+    querygroup.add_option('--collectionName', action="store", dest="collectionName", metavar='<ARG>', default='',
+                          help='single collection or list of collections')  
+    querygroup.add_option('--processingLevel', action="store", dest="processingLevel", default='L0,L1.0,SLC',
+                          help='Processing Level of data: L0, L1, L1.0, SLC... ' )
+    querygroup.add_option('--maxResults', action="store", dest="maxResults", type="int", metavar='<ARG>',
+                          help='maximum number of results to return (from each archive)')
     querygroup.add_option('--minBaselinePerp', action="store", dest="minBaselinePerp", metavar='<ARG>', help='min perpendicular baseline of granule')
     querygroup.add_option('--maxBaselinePerp', action="store", dest="maxBaselinePerp", metavar='<ARG>', help='max perpendicular baseline of granule')
     querygroup.add_option('--minFaradayRotation', action="store", dest="minFaradayRotation", metavar='<ARG>', help='min faraday rotation of granule')
@@ -123,24 +162,38 @@ Usage Examples:
     resultsgroup.add_option('--kml', action="store_true", default=False, help='create a KML of query') 
     resultsgroup.add_option('--kmlName', action="store", dest="kml_filename", type="str", metavar='<ARG>', help='Filename for KML output')
     resultsgroup.add_option('--csv', action="store_true", default=False, help='create a CSV of query')
+    resultsgroup.add_option('--txt', action="store_true", default=False, help='create a TXT of query')
     resultsgroup.add_option('--print', action="store_true", default=False, help='print results to screen')
     resultsgroup.add_option('--download', action="store_true", default=False, help='download the data')
-    resultsgroup.add_option('--parallel', action="store", dest="parallel", type="int", default=1, metavar='<ARG>', help='number of scenes to download in parallel (default=%default)')
-#    resultsgroup.add_option('--unavuser', action="store", dest="unavuser", type="str", metavar='<ARG>', help='UNAVCO SAR Archive username')
-#    resultsgroup.add_option('--unavpass', action="store", dest="unavpass", type="str",metavar='<ARG>', help='UNAVCO SAR Archive password')
-#    resultsgroup.add_option('--asfuser', action="store", dest="asfuser", type="str", metavar='<ARG>', help='ASF Archive username')
-#    resultsgroup.add_option('--asfpass', action="store", dest="asfpass", type="str", metavar='<ARG>', help='ASF Archive password')
-#    resultsgroup.add_option('--ssuser', action="store", dest="ssuser", type="str", metavar='<ARG>', help='Supersites username')
-#    resultsgroup.add_option('--sspass', action="store", dest="sspass", type="str", metavar='<ARG>', help='Supersites password')
+    resultsgroup.add_option('--papassword_configrallel', action="store", dest="parallel", type="int", default=1, metavar='<ARG>',
+                            help='number of scenes to download in parallel (default=%default)')
+    resultsgroup.add_option('--csv_path', action="store", dest="csv_path", type="str", default='s2_pair.csv', help='Save CSV path for pairs of S2 products')
+    resultsgroup.add_option('--txt_path', action="store", dest="txt_path", type="str", default='s2_image.csv', help='Save TXT path for pairs of S2 products')
+    #resultsgroup.add_option('--unavuser', action="store", dest="unavuser", type="str", metavar='<ARG>', help='UNAVCO SAR Archive username')
+    #resultsgroup.add_option('--unavpass', action="store", dest="unavpass", type="str",metavar='<ARG>', help='UNAVCO SAR Archive password')
+    #resultsgroup.add_option('--asfuser', action="store", dest="asfuser", type="str", metavar='<ARG>', help='ASF Archive username')
+    #resultsgroup.add_option('--asfpass', action="store", dest="asfpass", type="str", metavar='<ARG>', help='ASF Archive password')
+    #resultsgroup.add_option('--ssuser', action="store", dest="ssuser", type="str", metavar='<ARG>', help='Supersites username')
+    #resultsgroup.add_option('--sspass', action="store", dest="sspass", type="str", metavar='<ARG>', help='Supersites password')
     resultsgroup.add_option('--monthMin', action="store", dest="monMin",type="int", metavar='<ARG>', help='minimum integer month')
     resultsgroup.add_option('--monthMax', action="store", dest="monMax",type="int", metavar='<ARG>', help='maximum integer month')
     resultsgroup.add_option('--noswath', action="store_true", default=False, help='Enforce first_frame==final_frame (i.e. not a swath)')
     resultsgroup.add_option('--dem', action="store_true", default=False, help='OT call for DEM')
-    resultsgroup.add_option('--asfResponseTimeout', action="store", dest="asfResponseTimeout", type="int", metavar='<ARG>', help='Set the timeout length for ASF API response (SSARA server defaults to 15 sec.)')
+    resultsgroup.add_option('--asfResponseTimeout', action="store", dest="asfResponseTimeout", type="int", metavar='<ARG>',
+                            help='Set the timeout length for ASF API response (SSARA server defaults to 15 sec.)')
     resultsgroup.add_option('--s1orbits', action="store_true", default=False, help="Download S1 orbits from ESA for the result set")
     parser.add_option_group(resultsgroup) 
     opts, remainder = parser.parse_args(argv)
     opt_dict= vars(opts)
+
+    # boundingBox --> intersectsWith
+    if opt_dict['boundingBox']:
+        S, N, W, E = opt_dict['boundingBox'].split(',')
+        lats = [N, N, S, S, N]
+        lons = [W, E, E, W, W]
+        polygon = "POLYGON((" + ",".join([lon + " " + lat for lon, lat in zip(lons, lats)])  + "))"
+        opt_dict['intersectsWith'] = polygon
+        print('convert bounding box to polygon: {}'.format(polygon))
 
     ### BUILD DICTIONARY WITH QUERY FIELDS TO THE API ###
     query_dict = {}
@@ -222,10 +275,33 @@ Usage Examples:
     if not opt_dict['kml'] and not opt_dict['download'] and not opt_dict['print']:
         print("You did not specify the --kml, --print, or --download option, so there really is nothing else I can do for you now")
     if opt_dict['print']:
-        print('wget -O dem.tif "http://ot-data1.sdsc.edu:9090/otr/getdem?north=%f&south=%f&east=%f&west=%f&demtype=SRTMGL1_E"' % (north,south,east,west))
-        print('gdal_translate -of GMT -ot Int16 -projwin %f %f %f %f /vsicurl/https://cloud.sdsc.edu/v1/AUTH_opentopography/Raster/SRTM_GL1_Ellip/SRTM_GL1_Ellip_srtm.vrt dem.grd' % (west,north,east,south))
+        files = []
+        date = []
+        print('curl -X GET "https://portal.opentopography.org/API/globaldem?north=%f&south=%f&east=%f&west=%f&outputFormat=GTiff&demtype=SRTMGL1_E" -H "accept: */*" -o dem.wgs84.tif' % (north,south,east,west))
         for r in sorted(scenes, key=operator.itemgetter('startTime')):
-            print(",".join(str(x) for x in [r['collectionName'], r['platform'], r['absoluteOrbit'], r['startTime'], r['stopTime'], r['relativeOrbit'], r['firstFrame'], r['finalFrame'], r['beamMode'], r['beamSwath'], r['flightDirection'], r['lookDirection'],r['polarization'], r['downloadUrl']]))
+            files.append(r['downloadUrl'].split('/')[-1][:-4])
+            date.append(r['startTime'].split('T')[0])
+            print(",".join(str(x) for x in [r['collectionName'], r['platform'], r['absoluteOrbit'],
+                                            r['startTime'], r['stopTime'],
+                                            r['relativeOrbit'], r['firstFrame'], r['finalFrame'],
+                                            r['beamMode'], r['beamSwath'], r['flightDirection'], 
+                                            r['lookDirection'],r['polarization'], r['downloadUrl']]))
+        
+        master_files = files[:-1]
+        slave_files = files[1:]
+        status = np.zeros(len(master_files))
+        
+        import pandas as pd
+        data = {'Start Date':date[:-1], 'Master':master_files, 'Slave':slave_files, 'Status':status}
+        df = pd.DataFrame(data)
+        df.to_csv(opt_dict['csv_path'])
+        
+        if opt_dict['txt']:
+            txt_fl = open(opt_dict['txt_path'], 'w')
+            for fl in files:
+                txt_fl.write(fl+'\n')
+            txt_fl.close()
+    
     ### MAKE THE CSV FILE ###
     if opt_dict['csv']:
         with open('ssara_federated_search_'+datetime.datetime.now().strftime("%Y%m%d%H%M%S")+".csv",'w') as CSV:
@@ -236,7 +312,7 @@ Usage Examples:
                                  scene['firstFrame'],scene['finalFrame'],scene['startTime'],scene['stopTime'],scene['beamMode'],
                                  scene['beamSwath'],scene['flightDirection'],scene['lookDirection'],scene['polarization'],
                                  scene['processingLevel'],scene['downloadUrl'],scene['stringFootprint']])
-#                CSV.write(",".join(str(x) for x in [r['collectionName'], r['platform'], r['absoluteOrbit'], r['startTime'], r['stopTime'], r['relativeOrbit'], r['firstFrame'], r['finalFrame'], r['beamMode'], r['beamSwath'], r['flightDirection'], r['lookDirection'],r['polarization'], r['downloadUrl']])+"\n")
+
     ### GET A KML FILE, THE FEDERATED API HAS THIS OPTION ALREADY, SO MAKE THE SAME CALL AGAIN WITH output=kml OPTION ###
     if opt_dict['kml']:
         ssara_url = "https://web-services.unavco.org/brokered/ssara/api/sar/search?output=kml&%s" % params
@@ -252,9 +328,8 @@ Usage Examples:
         f.close() 
     ### DOWNLOAD THE DATA FROM THE QUERY RESULTS ### 
     if opt_dict['dem']:
-#        print('wget -O dem.tif "http://ot-data1.sdsc.edu:9090/otr/getdem?north=%f&south=%f&east=%f&west=%f&demtype=SRTMGL1"' % (north,south,east,west))
         print("Downloading DEM")
-        os.system('gdal_translate -of GMT -ot Int16 -projwin %f %f %f %f /vsicurl/https://cloud.sdsc.edu/v1/AUTH_opentopography/Raster/SRTM_GL1_Ellip/SRTM_GL1_Ellip_srtm.vrt dem.grd' % (west,north,east,south))
+        os.system('curl -X GET "https://portal.opentopography.org/API/globaldem?north=%f&south=%f&east=%f&west=%f&outputFormat=GTiff&demtype=SRTMGL1_E" -H "accept: */*" -o dem.wgs84.tif' % (north,south,east,west))
     if opt_dict['download']:
         allGood = True
         for collection in list(set([d['collectionName'] for d in scenes])):
@@ -317,7 +392,7 @@ class s1OrbitDownload(threading.Thread):
     def run(self):
         while True:
             scene, opt_dict = self.queue.get()
-            scene_center_time = datetime.datetime.strptime(scene['startTime'],"%Y-%m-%dT%H:%M:%S.%f")
+            scene_center_time = datetime.datetime.strptime(scene['startTime'],"%Y-%m-%dT%H:%M:%S.000000")
             sat = os.path.basename(scene['downloadUrl']).split("_")[0]
             validity_start_time = scene_center_time-datetime.timedelta(days=1)
             orb_type = 'aux_poeorb'
@@ -325,7 +400,7 @@ class s1OrbitDownload(threading.Thread):
                 orb_type = 'aux_resorb'
                 validity_start_time = scene_center_time-datetime.timedelta(hours=10)
             ##### FIND THE CORRECT ORBIT FILE #####
-            BASE_URL = 'https://qc.sentinel1.eo.esa.int/%s/?validity_start=%s' % (orb_type, validity_start_time.strftime("%Y-%m-%d"))
+            BASE_URL = 'https://s1qc.asf.alaska.edu/%s/?validity_start_time=%s' % (orb_type, validity_start_time.strftime("%Y-%m-%d"))
             for i in re.findall('''href=["'](.[^"']+)["']''', urlopen(BASE_URL).read().decode('utf-8'), re.I):
                 if '.EOF' in i and sat in i:
                     orbit_file_url = i
@@ -336,7 +411,8 @@ class s1OrbitDownload(threading.Thread):
                     if os.path.exists(orbit_file):
                         print("Already downloaded %s" % orbit_file_url)
                     elif not os.path.exists(orbit_file) and (orb_start < scene_center_time) and (orb_stop > scene_center_time):
-                        cmd = "wget --no-check-certificate -c %s" % orbit_file_url
+                        # cmd = "wget --user=ASFusername --password=ASFpassword %s" % orbit_file_url
+                        cmd = "wget --no-check-certificate -c %s" % orbit_file_url # use this for now
                         print(cmd)
                         pipe = sub.Popen(cmd, shell=True, stdout=sub.PIPE, stderr=sub.STDOUT).stdout
                         pipe.read()

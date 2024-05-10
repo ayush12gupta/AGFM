@@ -2,16 +2,72 @@
 
 This repo contains the code for fully automated SAR based glacier monitoring pipeline which generates a 12 days separated time-series velocity maps.
 
+This pipeline currently only supports the use of Sentinel-1 data. 
+
 ## Introduction
 
 To comprehend glacier dynamics for a region, a time-series study of glacier change is essential. However, generation of a large time series data often requires a substantial amount of computation and time. To address these limitations, we developed an efficient pipeline for processing of such large time-series Sentinel-1 imagery, generating extensive time series data for 3D glacier flow velocities.
 
 For feature tracking we developed a robut offset tracking module, built on top of [autoRIFT](https://github.com/nasa-jpl/autoRIFT.git). It has been modified for performing offset tracking based on NCC stacking, using the time-series of coregistered SAR imagery. For co-registration of SAR Images we have used stack processing mode of [ISCE](https://github.com/isce-framework/isce2), please go through the instructions on how to [install ISCE](https://github.com/isce-framework/isce2/blob/main/README.md).
 
-
-### **Running Single Image Pair velocity estimation** 
 The overall pipeline of single task processing is shown in figure below. 
+
 ![Pipeline for Velocity Estimation](./docs/overall_pipeline.png)
+
+
+## Running the pipeline
+
+We just need to provide the list of scene names for both ascending and descending track Sentinel-1 images. They can be generated using SSARA as demonstrated in [`Pre-processing.ipynb`](/notebook/Pre-processing.ipynb). And other parameters are given through [configs files](/configs/). 
+
+An example for [pipeline config](/configs/pipeline_config.json) is given,
+```json
+{
+    "save_path": "/DATA/run_2017_19", # Workflow run directory
+    "SAR_dir": "/DATA/S2_Data/",  # Sentinel-1 file save directiory
+    "shapefile_dir": "/DATA/shapefiles/CB_glacier_buffer.shp",  # Glacier region shapefile
+    "config_path": "/DATA/Automated_Offset_Tracking/configs/data_config.json",  # Data config file path
+    "polarisation": "vv"  # Sentinel-1 polarisation to be used
+}
+```
+
+Similarly, an example for [data config](/configs/data_config.json) is given,
+```json
+{
+    "num_threads": 64,  # No. of cores to be used
+    "chip_min": 240,    # Minimum chip size for offset tracking
+    "chip_max": 960,    # Maximum chip size for offset tracking
+    "Orbit_dir": "/DATA/S2_Data/orbit/",  # Orbit file save directory
+    "aux_dir": "/DATA/S2_Data/aux/",  # Auxilary file save directory
+    "cred_config": "config/credentials.json",  # Credentials json file
+    "ROI": "[32.06, 32.60, 77.09, 77.82]"  # Area of interest
+}
+
+```
+Script [***stack_pipeline.py***](/stack_pipeline.py) is used for running the pipeline, it takes in following parameters as input:-
+* Ascending track scene list (-t_asc)
+* Descending track scene list (-t_des)
+* Pipeline config file (--config)
+
+An example command calling single_process.py has been given below.
+
+```bash
+    python single_process.py --reference REFERENCE_URL --secondary SECONDARY_URL --save_path OUT_PATH --netCDF_out POST_FILENAME
+```
+
+```
+usage: stack_pipeline.py [-h] -t_asc DOWNLOAD_ASC_TXT -t_des DOWNLOAD_DES_TXT [--config CONFIG]
+
+optional arguments:
+  -h, --help            show this help message and exit
+  -t_asc DOWNLOAD_ASC_TXT, --download_asc_txt DOWNLOAD_ASC_TXT
+                        Data Ascending txt file
+  -t_des DOWNLOAD_DES_TXT, --download_des_txt DOWNLOAD_DES_TXT
+                        Data Descending txt file
+  --config CONFIG       Pipeline config file
+
+```
+
+### Running Single Image Pair velocity estimation
 We just need to provide the reference and secondary image pair URL, which can be obtained from [ASF Platform](https://search.asf.alaska.edu/#). Script ***single_process.py*** is used for single image pair velocity estimation, it takes in following parameters as input:-
 * Reference Image URL (-reference) and Secondary Image URL(--secondary)
 * Save path i.e. directory in which files will be saved (--save_path)
