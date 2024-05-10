@@ -13,8 +13,9 @@ For feature tracking we developed a robut offset tracking module, built on top o
 The overall pipeline of single task processing is shown in figure below. 
 
 <!-- ![Pipeline for Velocity Estimation](./docs/overall_pipeline.png) -->
+<p align="center">
 <img src="./docs/overall_pipeline.png" width="650">
-
+</p>
 
 ## Running the pipeline
 
