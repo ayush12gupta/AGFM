@@ -6,3 +6,4 @@ rasterio
 sentinelsat
 elevation
 bs4
+shapely

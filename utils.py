@@ -4,9 +4,12 @@ from pyproj import Transformer
 from osgeo import gdal, osr
 import numpy as np
 import datetime
+import fiona, rasterio
+import geopandas as gpd
+from rasterio.mask import mask
 import xml.etree.ElementTree as ET
 
-from geogrid_autorift.util import numpy_array_to_raster
+from offset_tracking.util import numpy_array_to_raster
 
 
 def execute(cmd):
@@ -101,6 +104,42 @@ def get_espg(lat, zone):
     if (lat < 0): # South
         epsg_code += 100    
     return epsg_code
+
+
+def cropRaster(shape_filenm, raster_filenm, cropped_filenm):
+    
+    # read imagery file
+    src = rasterio.open(raster_filenm)
+    crs_gt = src.crs
+    
+    gdf = gpd.read_file(shape_filenm)
+    if gdf.crs != crs_gt:
+        gdf = gdf.to_crs(crs_gt)
+        print("Reprojected CRS: ", gdf.crs)
+    else:
+        print("No reprojection needed.")
+
+    # Save the GeoDataFrame as a shapefile
+    gdf.to_file(shape_filenm)
+    
+    # Read Shape file
+    with fiona.open(shape_filenm, "r") as shapefile:
+        shapes = [feature["geometry"] for feature in shapefile]
+
+    
+    out_image, out_transform = mask(src, shapes, crop=False)
+    out_meta = src.meta
+
+    # Save clipped imagery
+    out_meta.update({"driver": "GTiff",
+                     "height": out_image.shape[1],
+                     "width": out_image.shape[2],
+                     "transform": out_transform})
+
+    with rasterio.open(cropped_filenm, "w", **out_meta) as dest:
+        dest.write(out_image)
+        
+    return out_image
 
 
 def generate_dem_products(dem_dir, bbox, config=None):

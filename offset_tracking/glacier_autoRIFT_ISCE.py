@@ -179,10 +179,10 @@ MULTI_THREAD = Component.Parameter('MultiThread',
 
 try:
     # Try Autorift within ISCE first
-    from .glacier_autoRIFT import glacier_autoRIFT
+    from .glacier_stacking_autoRIFT import glacier_autoRIFT
 except ImportError:
     # Try global Autorift
-    from glacier_autoRIFT import glacier_autoRIFT
+    from offset_tracking.glacier_stacking_autoRIFT import glacier_autoRIFT
 except:
     raise Exception('Autorift does not appear to be installed.')
 

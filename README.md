@@ -40,7 +40,7 @@ optional arguments:
 
 During coregisteration ISCE automatically downloads the DEM files which are then processed later automatically to generate DEM and Slope files for ROI.
 
-After autoRIFT algorithm is performed on the coregistered Master and Slave image, the offset maps are then used to compute velocities in radar amd azimuth directions. After, which postprocessing can then be applied using a custom post-processing function defined in ***geogrid_autorift/util.py***. 
+After autoRIFT algorithm is performed on the coregistered Master and Slave image, the offset maps are then used to compute velocities in radar amd azimuth directions. After, which postprocessing can then be applied using a custom post-processing function defined in ***offset_tracking/util.py***. 
 
 
 Output files may include all or few

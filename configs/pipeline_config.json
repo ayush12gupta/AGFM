@@ -1,5 +1,5 @@
 {
-    "save_path": "/DATA/run_2017_19",
+    "save_path": "/DATA/run_2017_19_test",
     "SAR_dir": "/DATA/S2_Data/",
     "Orbit_dir": "/DATA/S2_Data/orbit/",
     "aux_dir": "/DATA/S2_Data/aux/",

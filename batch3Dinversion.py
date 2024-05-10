@@ -6,7 +6,7 @@ from glob import glob
 import scipy.linalg as la
 from tqdm import tqdm
 from scipy.linalg import lstsq as sp_lstsq
-from geogrid_autorift.util import numpy_array_to_raster, get_incang, get_flightang, get_matA_3D
+from offset_tracking.util import numpy_array_to_raster, get_incang, get_flightang, get_matA_3D
 
 
 def read_velocity(path):
@@ -61,7 +61,7 @@ def compute_3DVel_single_hermet(V_aoro, A):
     A1, A2 = A[::2], A[1::2]
     b1, b2 = V_aoro[::2], V_aoro[1::2]
     P = np.eye(4)
-    P = initP(np.diag(P), V_aoro)
+    # P = initP(np.diag(P), V_aoro)
     P1 = np.diag(np.diag(P)[::2])
     P2 = np.diag(np.diag(P)[1::2])
     for i in range(3):
@@ -132,20 +132,25 @@ def batch_inversion(id_master_slave, asc_path, des_path, out_dir):
     
     asc_imgs = glob(f'{asc_path}/offset_tracking/*/velocity.tif')
     des_imgs = glob(f'{des_path}/offset_tracking/*/velocity.tif')
-    stacks = [st.split('/')[-2] for st in asc_imgs]
-    assert len(stacks)==len(des_imgs)
+    stacks = list(set([st.split('/')[-2] for st in asc_imgs]) & set([st.split('/')[-2] for st in des_imgs]))
+    # assert len(stacks)==len(des_imgs)
+    assert len(stacks)!=0
     
     # cwd = os.getcwd()
     os.makedirs(out_dir, exist_ok=True)
 
     start = time.time()
     for stack in tqdm(stacks):
+        try:
+            dt_m, dt_s = id_master_slave[np.where(id_master_slave[:,0]==stack)][0,1:]
+        except:
+            continue
+
         va_rg, va_az, projs, geo = read_velocity(f'{asc_path}/offset_tracking/{stack}/velocity.tif')
         vd_rg, vd_az, _, _ = read_velocity(f'{des_path}/offset_tracking/{stack}/velocity.tif')
         V_aoro = np.array([va_rg, va_az, vd_rg, vd_az])
         V_nev = compute_3DVel_mp(V_aoro, f'{asc_path}/offset_tracking/testGeogrid.txt', f'{des_path}/offset_tracking/testGeogrid.txt')
 
-        dt_m, dt_s = id_master_slave[np.where(id_master_slave[:,0]==stack)][0,1:]
         ds = numpy_array_to_raster(f'{out_dir}/{dt_m}_{dt_s}_{stack[6:]}.tif', V_nev, projs, geo, nband=3)
         ds.FlushCache()
         ds = None

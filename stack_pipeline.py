@@ -68,10 +68,10 @@ def main(inps):
     
     asc_txt, des_txt = file_pair_selection(inps.download_asc_txt, inps.download_des_txt)
         
-    # # Performing coregistration + offset tracking for ascending images
+    # Performing coregistration + offset tracking for ascending images
     print("Current working directory:", os.getcwd())
     stack_offset_tracking(config['config_path'], asc_txt, f'{config["SAR_dir"]}/ascending/', config['polarisation'].lower(), \
-                          config['mask'], f'{config["save_path"]}/stack_asc/', 'post')
+                          config['shapefile_dir'], f'{config["save_path"]}/stack_asc/', 'offset')
     
     if not os.path.exists(f'{config["save_path"]}/stack_asc/offset_tracking'):
         print("Ascending Pass Offset Tracking not complete")
@@ -81,7 +81,7 @@ def main(inps):
     # Performing coregistration + offset tracking for descending images
     print("Current working directory:", os.getcwd())
     stack_offset_tracking(config['config_path'], des_txt, f'{config["SAR_dir"]}/descending/', config['polarisation'].lower(), \
-                          config['mask'], f'{config["save_path"]}/stack_des/', 'post')
+                          config['shapefile_dir'], f'{config["save_path"]}/stack_des/', 'offset')
     
     if not os.path.exists(f'{config["save_path"]}/stack_des/offset_tracking'):
         print("Descending Pass Offset Tracking not complete")

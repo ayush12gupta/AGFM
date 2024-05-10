@@ -1,32 +1,38 @@
 from turtle import down
 import os
 import json
-import argparse
 import numpy as np
 from osgeo import gdal
 import isce 
 import isceobj
 from isce.applications.gdal2isce_xml import gdal2isce_xml
              
-from get_orbit import get_orbit_fl
-from create_xml import create_configISCE
+from preprocessing.get_orbit import get_orbit_fl
+from preprocessing.create_xml import create_configISCE
 
 
-parser = argparse.ArgumentParser()
-parser.add_argument('--reference', type=str, required=True, help="URL of reference zip file")  # Changing the url input to just sentinel file name
-parser.add_argument('--secondary', type=str, required=True, help="URL of secondary zip file")
-parser.add_argument('--orbit_path', type=str, default="./orbits/", help="directory in which orbit file needs to be saved")
-parser.add_argument('--data_pathR', type=str, default="./data/", help="directory in which reference data files needs to be saved")
-parser.add_argument('--data_pathS', type=str, default="./data/", help="directory in which secondary data files needs to be saved")
-parser.add_argument('--config', type=str, default="{}/configs/isce_config.json".format(os.getcwd()), help="ISCE config file")
-parser.add_argument('--roi', type=str, default=None, help="Region of interest")
-parser.add_argument('--type', type=str, default='topsApp', help="Type of process [Options: 'topsApp', 'demApp']")
+def cmdLineParse():
+    '''
+    Command line parser.
+    '''
+    import argparse
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--reference', type=str, required=True, help="URL of reference zip file")  # Changing the url input to just sentinel file name
+    parser.add_argument('--secondary', type=str, required=True, help="URL of secondary zip file")
+    parser.add_argument('--orbit_path', type=str, default="./orbits/", help="directory in which orbit file needs to be saved")
+    parser.add_argument('--data_pathR', type=str, default="./data/", help="directory in which reference data files needs to be saved")
+    parser.add_argument('--data_pathS', type=str, default="./data/", help="directory in which secondary data files needs to be saved")
+    parser.add_argument('--config', type=str, default="{}/configs/isce_config.json".format(os.getcwd()), help="ISCE config file")
+    parser.add_argument('--roi', type=str, default=None, help="Region of interest")
+    parser.add_argument('--type', type=str, default='topsApp', help="Type of process [Options: 'topsApp', 'demApp']")
 
-args = parser.parse_args()
+    args = parser.parse_args()
+    return args
+
 
 def download_DEM(roi, out_path='dem.tif'):
-    roi = np.array(args.roi[1:-1].replace(' ','').split(',')).astype('float')
-    bound = (roi[2]-0.5, roi[0]-0.5, roi[3]+0.5, roi[1]+0.5)
+    # roi = np.array(args.roi[1:-1].replace(' ','').split(',')).astype('float')
+    bound = (roi[2]-1, roi[0]-1, roi[3]+1, roi[1]+1)
     
     if not os.path.exists(out_path):
         cmd = f'eio --product SRTM1 clip -o {out_path} --bounds {bound[0]} {bound[1]} {bound[2]} {bound[3]}'
@@ -40,7 +46,7 @@ def download_DEM(roi, out_path='dem.tif'):
     transform = ds.GetGeoTransform()
     dem = ds.GetRasterBand(1).ReadAsArray()
 
-    dem_path = 'demLat.dem'
+    dem_path = '/'.join(out_path.split('/')[:-1]) + '/demLat.dem'
     # Creating binary file with zero
     elevation = np.memmap(dem_path, dtype=np.float32, mode='w+', shape=(length,width))
     elevation[:,:] = dem
@@ -185,4 +191,5 @@ def setup(args):
 
 
 if __name__=='__main__':
+    args = cmdLineParse()
     setup(args)
