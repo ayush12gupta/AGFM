@@ -1,8 +1,13 @@
-# Glacier Flow Analysis using SAR Data
+# Automated Glacier Flow Monitoring using SAR Data
 
-This repo contains the code for fully automated SAR based Offset tracking which can be used in various applicaitons we have some demos showing Offset tracking for glacier velocity estimation. For feature tracking we have used [autoRIFT](https://github.com/nasa-jpl/autoRIFT.git) and for co-registration of SAR Images we have used [ISCE](https://github.com/isce-framework/isce2), we have provided instuctions on how to [install ISCE](docs/ISCE Installation.pdf).
+This repo contains the code for fully automated SAR based glacier monitoring pipeline which generates a 12 days seperated time-series velocity maps.
 
-We support processing a batch of SAR Image for velocity estimation as well.
+## Introduction
+
+To comprehend glacier dynamics for a region, a time-series study of glacier change is essential. However, generation of a large time series data often requires a substantial amount of computation and time. To address these limitations, we developed an efficient pipeline for processing of such large time-series Sentinel-1 imagery, generating extensive time series data for 3D glacier flow velocities.
+
+For feature tracking we developed a robut offset tracking module, built on top of [autoRIFT](https://github.com/nasa-jpl/autoRIFT.git). It has been modified for performing offset tracking based on NCC stacking, using the time-series of coregistered SAR imagery. For co-registration of SAR Images we have used stack processing mode of [ISCE](https://github.com/isce-framework/isce2), please go through the instructions on how to [install ISCE](https://github.com/isce-framework/isce2/blob/main/README.md).
+
 
 ### **Running Single Image Pair velocity estimation** 
 The overall pipeline of single task processing is shown in figure below. 
