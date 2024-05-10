@@ -1,6 +1,6 @@
 # Automated Glacier Flow Monitoring using SAR Data
 
-This repo contains the code for fully automated SAR based glacier monitoring pipeline which generates a 12 days seperated time-series velocity maps.
+This repo contains the code for fully automated SAR based glacier monitoring pipeline which generates a 12 days separated time-series velocity maps.
 
 ## Introduction
 
