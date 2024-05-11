@@ -10,7 +10,7 @@ To comprehend glacier dynamics for a region, a time-series study of glacier chan
 
 For feature tracking we developed a robut offset tracking module, built on top of [autoRIFT](https://github.com/nasa-jpl/autoRIFT.git). It has been modified for performing offset tracking based on NCC stacking, using the time-series of coregistered SAR imagery. For co-registration of SAR Images we have used stack processing mode of [ISCE](https://github.com/isce-framework/isce2), please go through the instructions on how to [install ISCE](https://github.com/isce-framework/isce2/blob/main/README.md).
 
-The overall pipeline of single task processing is shown in figure below. 
+The overall pipeline of single task processing is shown in figure below.
 
 <!-- ![Pipeline for Velocity Estimation](./docs/overall_pipeline.png) -->
 <p align="center">
@@ -19,7 +19,7 @@ The overall pipeline of single task processing is shown in figure below.
 
 ## Running the pipeline
 
-We just need to provide the list of scene names for both ascending and descending track Sentinel-1 images. They can be generated using SSARA as demonstrated in [`Pre-processing.ipynb`](/notebook/Pre-processing.ipynb). And other parameters are given through [configs files](/configs/). 
+We just need to provide the list of scene names for both ascending and descending track Sentinel-1 images. They can be generated using [SSARA](https://github.com/rgrapenthin/SSARA) as demonstrated in [`Pre-processing.ipynb`](/notebook/Pre-processing.ipynb). And other parameters are given through [configs files](/configs/). 
 
 An example for [pipeline config](/configs/pipeline_config.json) is given,
 ```json
