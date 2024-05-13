@@ -24,6 +24,9 @@
 # authority as may be required before exporting this software to any 'EAR99'
 # embargoed foreign country or citizen of those countries.
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+# The software has been modified to take inputs suited for NCC stacking
+# and the proposed processing pipeline.
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 
 
@@ -57,11 +60,7 @@ def cmdLineParse():
     parser.add_argument('-g', '--input_g', dest='grid_location', type=str, required=False,
             help='Input pixel indices file name')
     parser.add_argument('-i', '--images', dest='images', type=list_of_strings, required=True,
-            help='Input master image file name (in ISCE format and radar coordinates) or Input master image file name (in GeoTIFF format and Cartesian coordinates)')
-    # parser.add_argument('-m', '--master_imgs', dest='master_imgs', type=list_of_strings, required=True,
-    #         help='Input master image file name (in ISCE format and radar coordinates) or Input master image file name (in GeoTIFF format and Cartesian coordinates)')
-    # parser.add_argument('-s', '--slave_imgs', dest='slave_imgs', type=list_of_strings, required=True,
-    #         help='Input master image file name (in ISCE format and radar coordinates) or Input master image file name (in GeoTIFF format and Cartesian coordinates)')
+            help='Input stacking image file list (in ISCE format and radar coordinates) or Input master image file name (in GeoTIFF format and Cartesian coordinates)')
     parser.add_argument('--mask', dest='mask', type=str, required=False, default=None,
             help='Glacier region mask file name')
     parser.add_argument('-sr', '--input_sr', dest='search_range', type=str, required=False,
@@ -95,9 +94,9 @@ def cmdLineParse():
 
     return parser.parse_args()
 
+
 class Dummy(object):
     pass
-
 
 
 def loadProduct(filename):
