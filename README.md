@@ -53,7 +53,7 @@ Script [***stack_pipeline.py***](/stack_pipeline.py) is used for running the pip
 An example command calling single_process.py has been given below.
 
 ```bash
-python single_process.py --reference REFERENCE_URL --secondary SECONDARY_URL --save_path OUT_PATH --netCDF_out POST_FILENAME
+python stack_pipeline.py -t_asc ASCENDING_TXT -t_des DESCENDING_TXT --config CONFIG_PATH
 ```
 
 ```
