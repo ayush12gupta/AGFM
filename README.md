@@ -78,6 +78,15 @@ This involves first performing coregisteration of ascending track time-series SA
 * [InSAR Scientific Computing Environment v2.6.3 (19 April 2023)](https://github.com/isce-framework/isce2/releases/tag/v2.6.3)
 
 
+## Contact us
+If you encountary any issues or would like to discuss new applications with these tools, please feel free to reach out to Ayush Gupta (ayushg12@uw.edu) :D 
+
+## Citation
+If you use these tools for research purposes, please cite the publication: 
+> Gupta, A., Devaraju, B., Tiwari, A., 2025. Processing pipeline for fully-automated computation of 3D glacier surface flow time series. Computers & Geosciences 200, 105918. [doi: 10.1016/j.cageo.2025.105918](https://doi.org/10.1016/j.cageo.2025.105918)
+
+
+
 ## References
 
 * Y. Lei, A. Gardner and P. Agram. (2021). "Autonomous Repeat Image Feature Tracking (autoRIFT) and Its Application for Tracking Ice Displacement," in Remote Sens, 13, 749. https://doi.org/10.3390/rs13040749
