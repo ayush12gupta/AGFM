@@ -142,7 +142,7 @@ def cropRaster(shape_filenm, raster_filenm, cropped_filenm):
     return out_image
 
 
-def generate_dem_products(dem_dir, bbox, config=None):
+def generate_dem_products(dem_dir, bbox, s1_file=None):
 
     bbox = np.array(bbox[1:-1].replace(' ','').split(',')).astype('float')
     zone = round((180+bbox[2])/6)
@@ -173,7 +173,7 @@ def generate_dem_products(dem_dir, bbox, config=None):
         ref_dir = str(tree.getroot().findall(".//*[@name='safe']")[0].text[1:-1])
         azimuth_angle = getazimuthAngle(ref_dir[1:-1])
     except:
-        azimuth_angle = config['azimuthAngle']
+        azimuth_angle = getazimuthAngle(s1_file)
 
     dz_dy, dz_dx = horn_gradient(dem, geo)
     slopey = directional_slope(dz_dx, dz_dy, float(azimuth_angle))
