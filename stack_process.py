@@ -353,7 +353,7 @@ def stack_offset_tracking(config_path, urls, data_path, polarization, shapefile,
     # dem = glob.glob('*.wgs84')
     dem = glob.glob('*.dem')
     dem_vrt = glob.glob('*.dem.vrt')
-    generate_dem_products(dem[0], config["ROI"], config)
+    generate_dem_products(dem[0], config["ROI"], data_path[0])
     
     dates = os.listdir('merged/SLC/')
     os.makedirs('./offset_tracking', exist_ok=True)
