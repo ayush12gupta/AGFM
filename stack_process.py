@@ -351,7 +351,7 @@ def stack_offset_tracking(config_path, urls, data_path, polarization, shapefile,
 
     # Preparing for geogrid
     # dem = glob.glob('*.wgs84')
-    dem = glob.glob('*.dem')
+    dem = glob.glob('*dem_roi.tif')
     dem_vrt = glob.glob('*.dem.vrt')
     generate_dem_products(dem[0], config["ROI"], data_path[0])
     
