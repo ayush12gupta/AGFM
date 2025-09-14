@@ -595,8 +595,8 @@ def main():
 
     inps = cmdLineParse()
 
-    from util import generate_dem_products
-    generate_dem_products(inps.demfile, inps.roi, stackfile=inps.stackfile)
+    # from util import generate_dem_products
+    # generate_dem_products(inps.demfile, inps.roi, stackfile=inps.stackfile)
     
     if inps.optical_flag == 1:
         metadata_m, metadata_s = coregisterLoadMetadataOptical(inps.indir_m, inps.indir_s)
@@ -605,7 +605,7 @@ def main():
         metadata_m = loadMetadata(inps.indir_m)
         metadata_s = loadMetadata(inps.indir_s)
         # runGeogrid(metadata_m, metadata_s, inps.demfile, inps.dhdxfile, inps.dhdyfile, inps.vxfile, inps.vyfile, inps.srxfile, inps.sryfile, inps.csminxfile, inps.csminyfile, inps.csmaxxfile, inps.csmaxyfile, inps.ssmfile)
-        runGeogrid(metadata_m, metadata_s, 'dem_crop.tif', 'dem_x.tif', 'dem_y.tif', inps.vxfile, inps.vyfile, inps.srxfile, inps.sryfile, inps.csminxfile, inps.csminyfile, inps.csmaxxfile, inps.csmaxyfile, inps.ssmfile, inps.stackfile)
+        runGeogrid(metadata_m, metadata_s, '../dem_crop.tif', '../dem_x.tif', '../dem_y.tif', inps.vxfile, inps.vyfile, inps.srxfile, inps.sryfile, inps.csminxfile, inps.csminyfile, inps.csmaxxfile, inps.csmaxyfile, inps.ssmfile, inps.stackfile)
         
 
 if __name__ == '__main__':
