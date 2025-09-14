@@ -351,9 +351,10 @@ def stack_offset_tracking(config_path, urls, data_path, polarization, shapefile,
 
     # Preparing for geogrid
     # dem = glob.glob('*.wgs84')
+    s1_file_paths = glob.glob(f'{data_path}/*')
     dem = glob.glob('*dem_roi.tif')
     dem_vrt = glob.glob('*.dem.vrt')
-    generate_dem_products(dem[0], config["ROI"], data_path[0])
+    generate_dem_products(dem[0], config["ROI"], s1_file_paths[0])
     
     dates = os.listdir('merged/SLC/')
     os.makedirs('./offset_tracking', exist_ok=True)
