@@ -2,6 +2,7 @@
     "num_threads": 64,
     "chip_min": 240,
     "chip_max": 960,
+    "asc_dec_deltaT": 1,
     "Orbit_dir": "/DATA/S2_Data/orbit/",
     "aux_dir": "/DATA/S2_Data/aux/",
     "cred_config": "config/credentials.json",

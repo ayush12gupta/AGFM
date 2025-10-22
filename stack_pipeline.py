@@ -22,7 +22,7 @@ def cmdLineParse():
     return parser.parse_args()
 
 
-def file_pair_selection(download_asc_txt, download_des_txt):
+def file_pair_selection(download_asc_txt, download_des_txt, num=4):
     file_asc = open(download_asc_txt, "r")
     data_asc = file_asc.read().split('\n')[:-1]
     date_asc = [fl.split('_')[5][:8] for fl in data_asc]
@@ -40,7 +40,7 @@ def file_pair_selection(download_asc_txt, download_des_txt):
     while (des_idx<len(data_des))&(asc_idx<len(data_asc)):
         diff = (date_des[des_idx] - date_asc[asc_idx]).days
         if diff<0:
-            if abs(diff)>1:
+            if abs(diff)>num:
                 des_idx+=1
             else:
                 des_fl.append(data_des[des_idx])
@@ -48,7 +48,7 @@ def file_pair_selection(download_asc_txt, download_des_txt):
                 des_idx+=1
                 asc_idx+=1
         elif diff>0:
-            if abs(diff)>1:
+            if abs(diff)>num:
                 asc_idx+=1
             else:
                 des_fl.append(data_des[des_idx])
@@ -62,11 +62,14 @@ def file_pair_selection(download_asc_txt, download_des_txt):
 def main(inps):
     with open(inps.config, 'r') as f:
         config = json.load(f)
+    
+    with open(config['config_path'], 'r') as f:
+        data_config = json.load(f)
         
     os.makedirs(config['save_path'], exist_ok=True)
     os.chdir(config['save_path'])
     
-    asc_txt, des_txt = file_pair_selection(inps.download_asc_txt, inps.download_des_txt)
+    asc_txt, des_txt = file_pair_selection(inps.download_asc_txt, inps.download_des_txt, data_config['asc_dec_deltaT'])
         
     # Performing coregistration + offset tracking for ascending images
     print("Current working directory:", os.getcwd())

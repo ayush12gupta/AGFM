@@ -6,7 +6,10 @@ from osgeo import gdal
 import isce 
 import isceobj
 from isce.applications.gdal2isce_xml import gdal2isce_xml
-             
+
+import odc.stac
+import pystac_client
+import planetary_computer            
 from preprocessing.get_orbit import get_orbit_fl
 from preprocessing.create_xml import create_configISCE
 
@@ -30,15 +33,51 @@ def cmdLineParse():
     return args
 
 
+def download_COP30_DEM(roi, out_path='dem.tif'):
+    # roi = np.array(args.roi[1:-1].replace(' ','').split(',')).astype('float')
+    bound = (roi[2]-1, roi[0]-1, roi[3]+1, roi[1]+1)
+        
+    if not os.path.exists(out_path):
+        print(f"--- DOWNLOADING COP-DEM-GLO-30 FOR BOUNDS {bound} ---")
+        try:
+            # 1. Connect to the Planetary Computer STAC catalog
+            catalog = pystac_client.Client.open(
+                "https://planetarycomputer.microsoft.com/api/stac/v1",
+                modifier=planetary_computer.sign_inplace,
+            )
+
+            # 2. Search for the DEM collection within the bounding box
+            search = catalog.search(
+                collections=["cop-dem-glo-30"],
+                bbox=bound,
+            )
+            items = search.item_collection()
+            if not items:
+                raise Exception("No DEM items found for the given ROI.")
+
+            # 3. Load the data using odc-stac
+            data = odc.stac.load(
+                items,
+                bands=["data"],
+                bbox=bound,
+            ).squeeze()
+
+            # 4. Save the data as a GeoTIFF
+            data.rio.to_raster(out_path)
+            print(f"Successfully downloaded and saved DEM to {out_path}")
+            print("----------------------------------------------------")
+
+        except Exception as e:
+            print(f"Failed to download DEM. Error: {e}")
+            return None # Exit if download fails
+
+
 def download_DEM(roi, out_path='dem.tif'):
     # roi = np.array(args.roi[1:-1].replace(' ','').split(',')).astype('float')
     bound = (roi[2]-1, roi[0]-1, roi[3]+1, roi[1]+1)
     
-    if not os.path.exists(out_path):
-        cmd = f'eio --product SRTM1 clip -o {out_path} --bounds {bound[0]} {bound[1]} {bound[2]} {bound[3]}'
-        os.system(cmd)
-    
-        # xml_file = gdal2isce_xml(out_path)
+    # Download COP30 DEM
+    download_COP30_DEM(roi, out_path)
         
     ds =  gdal.Open(out_path, gdal.GA_ReadOnly)
     width = ds.RasterXSize
