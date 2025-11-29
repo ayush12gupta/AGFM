@@ -563,7 +563,7 @@ def generateAutoriftProduct(imgs, grid_location, search_range, chip_size_min, ch
             if offset2va is not None:
                 offset2va[offset2va == nodata] = np.nan
 
-            deltaT_def = float(str.split(runCmd('fgrep "Repeat Time:" /DATA/testGeogrid.txt'))[-1])/(3600*24)
+            deltaT_def = float(str.split(runCmd('fgrep "Repeat Time:" testGeogrid.txt'))[-1])/(3600*24)
             factor = deltaT/deltaT_def
             VX = (offset2vr * DX)/factor
             VY = (offset2va * DY)/factor
