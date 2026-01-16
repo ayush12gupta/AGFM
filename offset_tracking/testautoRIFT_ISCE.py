@@ -255,6 +255,7 @@ def runAutorift(IMG, xGrid, yGrid, SRx0, SRy0, CSMINx0, CSMINy0, CSMAXx0, CSMAXy
     obj.ScaleChipSizeY = 1 #ChipSizeX0_PIX_azm/ChipSizeX0_PIX_grd
     obj.ChipSizeMaxX = (chip_max / chipsizex0) * ChipSizeX0_PIX_grd
     obj.ChipSizeMinX = (chip_min / chipsizex0) * ChipSizeX0_PIX_grd
+    obj.GridSpacingX = int(obj.ChipSize0X // 2)
     print('!!! test', obj.ChipSizeMinX, obj.ChipSizeMaxX, obj.ScaleChipSizeY, obj.IMG.dtype)
 
     # replace the nodata value with zero
