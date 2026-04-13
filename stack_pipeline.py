@@ -23,14 +23,14 @@ def cmdLineParse():
 
 
 def file_pair_selection(download_asc_txt, download_des_txt, num=4):
-    file_asc = open(download_asc_txt, "r")
-    data_asc = file_asc.read().split('\n')[:-1]
+    with open(download_asc_txt, "r") as file_asc:
+        data_asc = file_asc.read().split('\n')[:-1]
     date_asc = [fl.split('_')[5][:8] for fl in data_asc]
     date_asc = [f'{fl[:4]}/{fl[4:6]}/{fl[6:8]}' for fl in date_asc]
     date_asc = [datetime.strptime(dt, '%Y/%m/%d').date() for dt in date_asc]
-    
-    file_des = open(download_des_txt, "r")
-    data_des = file_des.read().split('\n')[:-1]
+
+    with open(download_des_txt, "r") as file_des:
+        data_des = file_des.read().split('\n')[:-1]
     date_des = [fl.split('_')[5][:8] for fl in data_des]
     date_des = [f'{fl[:4]}/{fl[4:6]}/{fl[6:8]}' for fl in date_des]
     date_des = [datetime.strptime(dt, '%Y/%m/%d').date() for dt in date_des]

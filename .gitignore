@@ -11,5 +11,6 @@ data/*.txt
 *.log
 */.~lock*
 configs/data_config.json
+configs/credentials.json
 stack/topsStack/Stack.py
 offset_scratch.py

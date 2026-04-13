@@ -1,3 +1,5 @@
+numpy
+scipy
 pyproj
 pandas
 fiona
@@ -7,3 +9,8 @@ sentinelsat
 elevation
 bs4
 shapely
+opencv-python
+geopandas
+psutil
+tqdm
+gdal
