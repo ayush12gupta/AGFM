@@ -39,7 +39,7 @@ def file_pair_selection(download_asc_txt, download_des_txt, num=4):
     des_idx, asc_idx = 0, 0
     while (des_idx<len(data_des))&(asc_idx<len(data_asc)):
         diff = (date_des[des_idx] - date_asc[asc_idx]).days
-        if diff<0:
+        if diff<=0:
             if abs(diff)>num:
                 des_idx+=1
             else:
@@ -47,7 +47,7 @@ def file_pair_selection(download_asc_txt, download_des_txt, num=4):
                 asc_fl.append(data_asc[asc_idx])
                 des_idx+=1
                 asc_idx+=1
-        elif diff>0:
+        else:
             if abs(diff)>num:
                 asc_idx+=1
             else:
